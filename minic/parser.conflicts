@@ -1,0 +1,393 @@
+
+** Conflict (shift/reduce) in state 103.
+** Token involved: ELSE
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) IF LP expr RP IF LP expr RP instr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  (?)
+
+** In state 103, looking ahead at ELSE, shifting is permitted
+** because of the following sub-derivation:
+
+IF LP expr RP instr ELSE instr 
+              instr_ 
+              IF LP expr RP instr . ELSE instr 
+
+** In state 103, looking ahead at ELSE, reducing production
+** instr_ -> IF LP expr RP instr 
+** is permitted because of the following sub-derivation:
+
+IF LP expr RP instr ELSE instr // lookahead token appears
+              instr_ // lookahead token is inherited
+              IF LP expr RP instr . 
+
+** Conflict (shift/reduce) in state 102.
+** Tokens involved: PP PLUS MULT MM MINUS
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) FOR LP l_expr expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  (?)
+
+** In state 102, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr 
+              expr 
+              expr_ 
+              expr . PP 
+
+** In state 102, looking ahead at PP, reducing production
+** option(expr) -> expr 
+** is permitted because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr // lookahead token appears because l_expr can begin with PP
+              expr . 
+
+** Conflict (shift/reduce) in state 99.
+** Tokens involved: PP PLUS MULT MM MINUS
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) FOR LP expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  (?)
+
+** In state 99, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr 
+       loption(separated_nonempty_list(COMMA,expr)) 
+       separated_nonempty_list(COMMA,expr) 
+       expr 
+       expr_ 
+       expr . PP 
+
+** In state 99, looking ahead at PP, reducing production
+** separated_nonempty_list(COMMA,expr) -> expr 
+** is permitted because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr // lookahead token appears because option(expr) can begin with PP
+       loption(separated_nonempty_list(COMMA,expr)) // lookahead token is inherited
+       separated_nonempty_list(COMMA,expr) // lookahead token is inherited
+       expr . 
+
+** Conflict (shift/reduce) in state 91.
+** Tokens involved: PP PLUS MULT MM MINUS LP IDENT CONST_STRING CONST_DOUBLE CONST_CHAR CINT
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) FOR LP l_expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  (?)
+
+** In state 91, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr 
+              expr 
+              expr_ 
+              . PP expr 
+
+** In state 91, looking ahead at PP, reducing production
+** option(expr) -> 
+** is permitted because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr // lookahead token appears because l_expr can begin with PP
+              . 
+
+** Conflict (shift/reduce) in state 88.
+** Tokens involved: PP PLUS MULT MM MINUS LP IDENT CONST_STRING CONST_DOUBLE CONST_CHAR CINT
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) FOR LP 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  (?)
+
+** In state 88, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr 
+       loption(separated_nonempty_list(COMMA,expr)) 
+       separated_nonempty_list(COMMA,expr) 
+       expr 
+       expr_ 
+       . PP expr 
+
+** In state 88, looking ahead at PP, reducing production
+** loption(separated_nonempty_list(COMMA,expr)) -> 
+** is permitted because of the following sub-derivation:
+
+FOR LP l_expr option(expr) l_expr RP instr // lookahead token appears because option(expr) can begin with PP
+       loption(separated_nonempty_list(COMMA,expr)) // lookahead token is inherited
+       . 
+
+** Conflict (shift/reduce) in state 82.
+** Tokens involved: PP PLUS OR NEQ MULT MODULO MM MINUS LT LE GT GE EQ DIV AND
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) PP expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  expr SEMI 
+                                                                                                  expr_ 
+                                                                                                  (?)
+
+** In state 82, looking ahead at PP, reducing production
+** expr_ -> PP expr 
+** is permitted because of the following sub-derivation:
+
+expr PP // lookahead token appears
+expr_ // lookahead token is inherited
+PP expr . 
+
+** In state 82, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+PP expr 
+   expr_ 
+   expr . PP 
+
+** Conflict (reduce/reduce) in state 81.
+** Tokens involved: PP PLUS OR NEQ MULT MODULO MM MINUS LT LE GT GE EQ DIV AND
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) PLUS expr_ 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  expr SEMI 
+                                                                                                  expr_ 
+                                                                                                  (?)
+
+** In state 81, looking ahead at PP, reducing production
+** expr -> expr_ 
+** is permitted because of the following sub-derivation:
+
+PLUS expr_ 
+     expr PP // lookahead token appears
+     expr_ . 
+
+** In state 81, looking ahead at PP, reducing production
+** expr_ -> PLUS expr_ 
+** is permitted because of the following sub-derivation:
+
+expr PP // lookahead token appears
+expr_ // lookahead token is inherited
+PLUS expr_ . 
+
+** Conflict (shift/reduce) in state 80.
+** Tokens involved: PP OR NEQ MODULO MM LT LE GT GE EQ AND
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) MULT expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  expr SEMI 
+                                                                                                  expr_ 
+                                                                                                  (?)
+
+** In state 80, looking ahead at PP, reducing production
+** expr_ -> MULT expr 
+** is permitted because of the following sub-derivation:
+
+expr PP // lookahead token appears
+expr_ // lookahead token is inherited
+MULT expr . 
+
+** In state 80, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+MULT expr 
+     expr_ 
+     expr . PP 
+
+** Conflict (shift/reduce) in state 79.
+** Tokens involved: PP PLUS OR NEQ MULT MODULO MM MINUS LT LE GT GE EQ DIV AND
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) MM expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  expr SEMI 
+                                                                                                  expr_ 
+                                                                                                  (?)
+
+** In state 79, looking ahead at PP, reducing production
+** expr_ -> MM expr 
+** is permitted because of the following sub-derivation:
+
+expr PP // lookahead token appears
+expr_ // lookahead token is inherited
+MM expr . 
+
+** In state 79, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+MM expr 
+   expr_ 
+   expr . PP 
+
+** Conflict (shift/reduce) in state 78.
+** Tokens involved: PP OR NEQ MODULO MM LT LE GT GE EQ AND
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) MINUS expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  expr SEMI 
+                                                                                                  expr_ 
+                                                                                                  (?)
+
+** In state 78, looking ahead at PP, reducing production
+** expr_ -> MINUS expr 
+** is permitted because of the following sub-derivation:
+
+expr PP // lookahead token appears
+expr_ // lookahead token is inherited
+MINUS expr . 
+
+** In state 78, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+MINUS expr 
+      expr_ 
+      expr . PP 
+
+** Conflict (shift/reduce) in state 76.
+** Tokens involved: PP PLUS OR NEQ MULT MODULO MM MINUS LT LE GT GE EQ DIV AND
+** The following explanations concentrate on token PP.
+** This state is reached from file after reading:
+
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP LB list(terminated(decl_var,SEMI)) expr op expr 
+
+** The derivations that appear below have the following common factor:
+** (The question mark symbol (?) represents the spot where the derivations begin to differ.)
+
+file 
+list(decl) EOF 
+decl list(decl) 
+typ var LP loption(separated_nonempty_list(COMMA,decl_var)) RP block 
+                                                               LB list(terminated(decl_var,SEMI)) list(instr) RB 
+                                                                                                  instr list(instr) 
+                                                                                                  instr_ 
+                                                                                                  expr SEMI 
+                                                                                                  expr_ 
+                                                                                                  (?)
+
+** In state 76, looking ahead at PP, reducing production
+** expr_ -> expr op expr 
+** is permitted because of the following sub-derivation:
+
+expr PP // lookahead token appears
+expr_ // lookahead token is inherited
+expr op expr . 
+
+** In state 76, looking ahead at PP, shifting is permitted
+** because of the following sub-derivation:
+
+expr op expr 
+        expr_ 
+        expr . PP 
