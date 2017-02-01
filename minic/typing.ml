@@ -1,11 +1,49 @@
 open Ast
+exception Type_error of (Ast.loc * string)
 
 module Env =  Map.Make (String)
 
+let error loc msg = raise(Type_error (loc, msg))
+let mk_node t e = { info = t ; node = e } 
 let global_env = Hashtbl.create 17
 let struct_env : (string, var_decl list)Hashtbl.t = Hashtbl.create 17
 let fun_env = Hashtbl.create 17
 
+(* let global_t_signed_int = Tnum(Signed, Int) *)   
+
+let add_global_env tab key v = 
+	if Hashtbl.mem tab key.node  then 
+		error key.info("Redéfinition de l'identifiant " ^ key.node)
+	else 
+		Hashtbl.add tab key.node v 
+		
+		
+let num t  = match t with 
+	|Tstruct _ | Tvoid -> false
+	| _ -> true 
+	
+let arith t  = match t with 
+	|Tstruct _ | Tvoid | Tpointer _ -> false
+	| _ -> true   
+		
+let check_var_decl var_decl = 
+	let _ =	
+		List.fold_left( fun acc(typ, id) ->
+			if typ = Tvoid then 
+				error id.info "Type de variable invalide"
+			else 
+				if List.mem id.node acc then 
+					error id.info("Redéfinition de l'identifiant" ^ id.node )
+				else 
+					id.node :: acc) [] var_decl 
+	in var_decl 		
+
+let rec check_wf t =
+	match t with 
+	| Tstruct  id -> Hashtbl.mem struct_env id.node 
+	| Tpointer tt -> check_wf tt
+	| _ -> true 
+		
 let compatible t1 t2 = 
 	let rec compat_aux t1 t2 = 
 		match t1, t2 with
@@ -62,36 +100,100 @@ let type_var_decl vd =
 let add_env env vd = 
 	List.fold_left (fun acc (t, id) -> Env.add id.node t acc ) env
 
-let type_block t env block = assert false
-(*	match block with ( vdl , insl) -> List.iter (type_var_decl) vdl;  List.iter (type_instr) t env insl;  *)
- 
-(*assert false *)
+let type_const c = 
+	match c with
+	| Cstring _ -> Tpointer ( Tnum( Signed, Char ))
+	| Cdouble _ -> Tdouble
+	| Cint( Signed, Int, 0) -> Tnull
+	| Cint( s, t, _) -> Tnum(s, t) 
+		
 
-(*let type_instr t env ins = assert false *)
+let rec type_expr env e = 
+	match e.node with 
+	| Econst c -> let tc = type_const c in 
+					mk_node tc (Econst c)
+	| Eunop (unop, e0) -> 
+		begin match unop with
+		| Neg -> let te0 = type_expr env e0 in
+			if not (arith te0.info) then 
+				error e0.info "Type invalide pour -"
+			else 
+				mk_node te0.info (Eunop(Neg, te0))
+		| Deref -> let te0 = type_lvalue env e0 in 
+					assert false 
+		| Preincr | Postincr | Predecr | Postdecr 
+			-> let te0 = type_expr env e0 in
+			if not (arith te0.info) then 
+				error e0.info "Type invalide pour -"
+			else 
+				mk_node te0.info (Eunop(unop, te0))
+		end
+	| _ -> type_lvalue env e  
 
-(*type instr et expr match.node*)
+and type_lvalue env e =
+		match e.node with
+		|Eident id -> 
+			let t = 
+				try 
+					try
+						Env.find id.node env
+					with
+						Not_found -> 
+						Hashtbl.find global_env id.node
+				with
+					Not_found -> error id.info ("Variable non définie " ^ id.node)
+			 in 
+			 mk_node t (Eident id)
+		(* voir tous les cas *)
+		| _ -> error e.info "Valeur gauche attendue"
+
+let rec type_instr ty env t = 
+	match t.node with 
+	| Sskip -> mk_node Tvoid Sskip
+	| Sexpr e -> let te = type_expr env e in 
+							mk_node te.info (Sexpr te)
+	| _ -> assert false 
+
+let type_block ty env (var_decl, instrs )  = 
+	(check_var_decl var_decl,
+	List.map (type_instr ty env) instrs)
 
 let type_decl d = 
 	match d with 
-	|Dvar (t, i) -> if type_bf t && t <> Tvoid && not (Hashtbl.mem global_env i.node) then begin
-				Hashtbl.add global_env i.node t
-			end else
-				error i.info "declaration globale invalide"
-	| Dstruct (id, var_decl) -> if Hashtbl.mem struct_env id.node then
-					error id.info ("Redefinition de lq structure" ^ id.node)
-				   else begin
-					Hashtbl.add struct_env id.node var_decl;
-					type_var_decl var_decl
-				   end
-	| Dfun (t, f, params, b) ->	
-		if not (type_bf t) then error f.info ("Type de retour invalide pour " ^ f.node);
-		if Hashtbl.mem fun_env f.node then error f.info ("Redefinition de la fonction" ^f.node);
-		type_var_decl params;
-		Hashtbl.add fun_env f.node (t, params);
-		match b with
-		 None -> ()
-		| Some block -> let env = add_env Env.empty params in
-			 type_block t env block
+	| Dvar ((typ, id )) -> 
+		if typ = Tvoid then
+			error id.info "type de variable invalide" 
+		else  
+				begin 
+					add_global_env global_env id typ;
+					Dvar (( typ, id ))
+				end
+	| Dstruct ( id, var_decl) -> 
+		add_global_env struct_env id var_decl;
+		let t_var_decl = check_var_decl var_decl in 
+		Dstruct(id, t_var_decl )
+		
+	| Dfun (ty, ident, args , bloc) -> 
+		if not (type_bf ty) then
+			error ident.info "Type de retour invalide" 
+		else 
+			begin
+				add_global_env fun_env ident (ty, ident, args); 
+				let t_args = check_var_decl args in 
+				let t_block = match bloc with 
+				| None -> None 
+				| Some body ->
+					let env = List.fold_left(fun acc(t, id) -> 
+						Env.add id.node t acc) Env.empty args
+					in 
+					let t_body = type_block ty env body in 
+					Some t_body
+			in 
+				Dfun(ty, ident, t_args, t_block) 
+			end 
+	
+let type_prog prog = 
+	List.map (type_decl) prog 
 
-let type_prog l = 
-	List.iter (type_decl) l
+	
+

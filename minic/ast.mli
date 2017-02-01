@@ -32,12 +32,19 @@ type unop = Neg | Deref | Preincr | Postincr | Predecr | Postdecr
 
 type 'info expr = ('info, 'info expr_node) node
 and 'info expr_node =
-  | Enull (* Inséré automatiquement à partir de 0 *)
+   (*| EnullInséré automatiquement à partir de 0 *)
   | Econst of constant
   | Eident of ident
   | Esizeof of c_type
   | Ebinop of 'info expr * binop * 'info expr
   | Eunop of unop * 'info expr
+  | Egetarr of 'info expr * 'info expr
+  | Estructvar of 'info expr * ident 
+  | Estructvarpointer of 'info expr * ident
+  | Eassign of 'info expr * 'info expr
+  | Ecall of ident * 'info expr list
+  | Ecast of c_type * 'info expr 
+  
   (* à compléter *)
 
 
@@ -50,7 +57,8 @@ and 'info statement_node =
   | Sexpr of 'info expr
   | Sif of 'info expr * 'info statement * 'info statement 
   | Sfor of 'info expr list *  ('info expr option ) * 'info expr list * 'info statement
-  (* à compléter *)
+  | Sreturn of 'info expr option 
+  (* à compléter  FINI*)
 
 and 'info block =
     var_decl list * 'info statement list
@@ -59,6 +67,6 @@ type 'info decl =
   | Dvar of var_decl
   | Dstruct of ident * var_decl list
   | Dfun of c_type * ident * var_decl list * ('info block option)
-  (* à compléter *)
+  (* à compléter  FINI*)
 
 type 'info file =  'info decl list

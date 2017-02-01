@@ -25,6 +25,15 @@
     | I i -> (t, i)
     | P vv -> unvar (Tpointer t) vv
 
+  
+  type ptyp =
+  | T of c_type
+  | C of ptyp
+
+  let rec untyp v =
+    match v with
+    | T t -> (t)
+    | C vv -> Tpointer (untyp vv)
 
 %}
 
@@ -105,6 +114,8 @@ instr_:
 | IF ; LP ; e = expr ; RP ; i1=instr; ELSE ; i2=instr   { Sif(e,i1,i2) }  				
 | IF ; LP ; e=expr ; RP; i1= instr						{ Sif(e,i1,loc_dummy Sskip ) }
 | FOR ; LP ; l1 = l_expr; e = option(expr) ; l2 = l_expr ; RP ; i = instr { Sfor(l1, e ,l2,i)}
+| WHILE ; e = option(expr) ; i = instr 					{ Sfor( [], e, [], i)  }
+| RETURN ; e = option(expr) ; SEMI 							{ Sreturn e }
 ;
 
 instr:
@@ -116,13 +127,13 @@ n=num ;	 					{ Tnum( Signed , n )   	}
 |UNSIGNED ; n=num 			{ Tnum( Unsigned, n )  	}
 |VOID						{ Tvoid   				}
 |DOUBLE						{ Tdouble 				}
+|STRUCT ; id = ident 		{ Tstruct id 			}
 ;	 
 
   /* À COMPLÉTER : autres règles */	
 decl_var:
 t = typ ; v = var       { unvar t v }    
 ;
-
   
 ident_:
   i = IDENT    { i }
@@ -131,6 +142,8 @@ ident_:
 ident:
 |i = ident_ 	{ mk_loc i ($startpos,$endpos)	}
 ;  
+
+
 var:
   i = ident      	{ I (i) }
 | MULT ; v = var    { P(v) }
@@ -187,6 +200,21 @@ expr_:
 | MM; e = expr	 					{ Eunop(Predecr,e)	}
 | e = expr ; MM						{ Eunop(Postdecr,e)	}
 | e = expr ; PP						{ Eunop(Postincr,e)	}
+| e1 = expr ; LBRACKET ; e2 = expr ; RBRACKET 
+									{Egetarr( e1, e2)	}
+| e1 = expr ; DOT ; id = ident		{ Estructvar(e1, id) }
+| e1 = expr ; POINTER ; id = ident  { Estructvarpointer( e1, id) }
+| e1 = expr ; ASSIGN ; e2 = expr    { Eassign( e1, e2 ) }
+| id = ident ; LP ; e = l_expr ; RP	{ Ecall( id, e) }
+| SIZEOF ; LP ; ct = cplx_type ; RP	{ let t = untyp ct in Esizeof t }
+| LP ; ct = cplx_type ; RP ; e = expr { let t = untyp ct in Ecast( t, e ) 	}  
+;
+
+
+
+cplx_type :
+| t = typ       		{ T(t) }
+| v = cplx_type ; MULT  { C(v) }
 ;
 
 expr:
