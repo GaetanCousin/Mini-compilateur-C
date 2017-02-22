@@ -1,4 +1,5 @@
 open Ast
+
 exception Type_error of (Ast.loc * string)
 
 module Env =  Map.Make (String)
@@ -120,14 +121,62 @@ let rec type_expr env e =
 			else 
 				mk_node te0.info (Eunop(Neg, te0))
 		| Deref -> let te0 = type_lvalue env e0 in 
-					assert false 
+					assert false
 		| Preincr | Postincr | Predecr | Postdecr 
 			-> let te0 = type_expr env e0 in
 			if not (arith te0.info) then 
 				error e0.info "Type invalide pour -"
-			else 
+			else  
 				mk_node te0.info (Eunop(unop, te0))
 		end
+	| Eaccess (e0, x) ->
+			let te0 = type_expr env e0 in
+			begin 
+				match te0.info with
+					Tstruct id -> 
+						let fields = Hashtbl.find struct_env id.node in 
+						begin try
+							let t, _ =
+								List.find (fun (t, y) -> y.node = x.node) fields
+							in
+							mk_node t (Eaccess (te0, x))
+						with
+							Not_found -> error x.info "Champ de structure inconnu"
+						end	
+				| _ -> error e.info " accès a une valeur non structurelle"
+			end
+	| Ecall (f, params) ->
+		let tparams = List.map (type_expr env) params in
+		begin
+			try 
+				let tret, _ , args = Hashtbl.find fun_env f.node in
+				try 
+					(* Compare les deux listes deux à deux pour tester la cohérence de type *)
+					List.iter2 (fun e  (t, x) ->  
+						if not (compatible e.info t) then
+							error x.info ("Type invalide pour le paramètre " ^ x.node ^ " de " ^ f.node))
+							tparams
+							args;
+					mk_node tret (Ecall(f, tparams))
+				with
+					(* Les listes ont deux tailles différentes *) 
+					Invalid_argument _ -> error f.info ("Nombre d'argument invalide pour " ^ f.node)	
+			with 
+				Not_found -> error f.info ("La fonction " ^ f.node ^ " n'existe pas")
+		end
+	(*| Ebinop(e0,op,e1) -> 
+		let te0 = type_expr env e0 in
+		begin 
+			match op with
+			| And | Or -> 
+			| Eq | Neq | Ge | Gt | Le | Lt ->
+			| Add | Mult | Div | Sub | Mod ->
+	
+	|Eassign (v, e0) -> 
+		begin 
+			let te0 = type_expr env e0 in
+			*) 
+		
 	| _ -> type_lvalue env e  
 
 and type_lvalue env e =
