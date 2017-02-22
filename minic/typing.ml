@@ -79,9 +79,6 @@ let max_type t1 t2 =
 	if inf_type t1 t2 then t2
 	else t1
 
-exception TypeError of loc * string
-let error loc msg = raise (TypeError (loc, msg))
-
 let rec type_bf t =
 	match t with
 	  Tpointer tt -> type_bf tt
@@ -130,21 +127,8 @@ let rec type_expr env e =
 				mk_node te0.info (Eunop(unop, te0))
 		end
 	| Eaccess (e0, x) ->
-			let te0 = type_expr env e0 in
-			begin 
-				match te0.info with
-					Tstruct id -> 
-						let fields = Hashtbl.find struct_env id.node in 
-						begin try
-							let t, _ =
-								List.find (fun (t, y) -> y.node = x.node) fields
-							in
-							mk_node t (Eaccess (te0, x))
-						with
-							Not_found -> error x.info "Champ de structure inconnu"
-						end	
-				| _ -> error e.info " accès a une valeur non structurelle"
-			end
+			type_eaccess type_lvalue env e0 x
+			
 	| Ecall (f, params) ->
 		let tparams = List.map (type_expr env) params in
 		begin
@@ -195,6 +179,24 @@ and type_lvalue env e =
 			 mk_node t (Eident id)
 		(* voir tous les cas *)
 		| _ -> error e.info "Valeur gauche attendue"
+
+and type_eaccess f_type env e0 x = 
+	let te0 = f_type env e0 in
+			begin 
+				match te0.info with
+					Tstruct id -> 
+						let fields = Hashtbl.find struct_env id.node in 
+						begin try
+							let t, _ =
+								List.find (fun (t, y) -> y.node = x.node) fields
+							in
+							mk_node t (Eaccess (te0, x))
+						with
+							Not_found -> error x.info "Champ de structure inconnu"
+						end	
+				| _ -> error e0.info " accès a une valeur non structurelle"
+			end
+
 
 let rec type_instr ty env t = 
 	match t.node with 

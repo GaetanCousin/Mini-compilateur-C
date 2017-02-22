@@ -8,9 +8,7 @@ int f( double *x){
 	
 int y;
 int z;
-x;
-+z;
--z;
+
 3.2;
 "aa";
 'a';
