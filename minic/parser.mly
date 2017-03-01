@@ -61,6 +61,11 @@
 %token <Ast.signedness*Ast.num*int> CINT
 
 (* priorite *)
+%nonassoc ELSE
+%left OR
+%left AND
+%left NOT
+%left EQ NEQ GE GT LE LT
 %left PLUS MINUS
 %left MULT DIV
 
@@ -194,6 +199,7 @@ expr_:
 | id = ident 						{ Eident id 		}
 | MINUS ; e = expr	%prec uminus	{ Eunop(Neg, e)   }
 | MULT ; e = expr 	%prec ustar		{ Eunop(Deref, e)	}
+| NOT ; e = expr 					{ Eunop(Not, e)	}
 | LP ; e = expr_ ; RP 				{ e 				}
 | PLUS ; e = expr_					{ e 				}
 | PP; e = expr	 					{ Eunop(Preincr,e)	}

@@ -93,10 +93,7 @@ let rec rank t =
 
 let typ_lt t1 t2 = 
 	arith t1 && arith t2 && (rank t1) < (rank t2)
-	
-let typ_lte t1 t2 = 
-	typ_lt t1 t2 || type_eq t1 t2
-*)
+	*)
 
 let rank t = 
 	let rank_aux n = match n with
@@ -114,6 +111,9 @@ let rank t =
 
 let inf_type t1 t2 = 
 	rank t1 < rank t2
+
+let typ_lte t1 t2 = 
+	inf_type t1 t2 || type_eq t1 t2
 
 let max_type t1 t2 = 
 	if inf_type t1 t2 then t2
@@ -171,6 +171,11 @@ let rec type_expr env e =
 				error e0.info "Type invalide pour -"
 			else  
 				mk_node te0.info (Eunop(unop, te0))
+		| Not -> let te0 = type_expr env e0 in
+			if not (num te0.info) then 
+				error e0.info "Type invalide pour -"
+			else  
+				mk_node signed_int (Eunop(unop, te0))
 		end
 	| Eaccess (e0, x) ->
 			type_eaccess type_lvalue env e0 x
@@ -221,9 +226,24 @@ let rec type_expr env e =
 					else if type_eq t2 unsigned_int then mk_cast unsigned_int te1, te2 else te1, te2
 			else 
 				te1, te2
-		in
+		in 
+		let t1 = nte1.info in
+		let t2 = nte2.info in
 		begin 
 			match op with
+			|And | Or -> if compatible t1 t2 && compatible t1 Tdouble 
+						 then mk_node signed_int (Ebinop(nte1,op,nte1)) 
+						 else error e.info "Type invalide pour -"
+			|Add | Sub | Mult | Div -> if compatible t1 t2 && compatible t1 Tdouble
+									   then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
+									   else error e.info "Type invalide pour -"
+			|Eq | Neq | Ge | Gt | Le | Lt -> if compatible t1 t2 
+											 then mk_node signed_int (Ebinop(nte1,op,nte1))
+											 else error e.info "Type invalide pour -"
+			|Mod -> if compatible t1 t2 && typ_lte (max_type t1 t2) unsigned_long
+					then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
+					else error e.info "Type invalide pour -"
+			
 			| _ -> assert false 
 		end
 	|Eassign (e1, e2) -> 
@@ -234,7 +254,6 @@ let rec type_expr env e =
 			else 
 				mk_node te1.info (Eassign(te1, mk_cast te1.info te2))		
 	| _ -> type_lvalue env e  
-
 and type_lvalue env e =
 		match e.node with
 		|Eident id -> 

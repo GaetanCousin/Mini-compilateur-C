@@ -28,7 +28,7 @@ type constant =
 type binop = Add | Mult | Div | Sub | Mod | Eq | Neq | Ge | Gt
 			| Le | Lt | And | Or 
 
-type unop = Neg | Deref | Preincr | Postincr | Predecr | Postdecr
+type unop = Neg | Deref | Preincr | Postincr | Predecr | Postdecr | Not
 
 type 'info expr = ('info, 'info expr_node) node
 and 'info expr_node =
