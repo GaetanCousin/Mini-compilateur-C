@@ -1,0 +1,6 @@
+*.cm*
+minic
+parser.mli
+parser.ml
+lexer.ml
+parser.conflicts
