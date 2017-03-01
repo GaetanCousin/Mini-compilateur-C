@@ -11,11 +11,11 @@ let struct_env : (string, var_decl list)Hashtbl.t = Hashtbl.create 17
 let fun_env = Hashtbl.create 17
 
 (* Constantes de type *) 
-let signed_char = Tnum(Signed, Nchar)
-let signed_int = Tnum(Signed, Nint)
-let unsigned_int = Tnum(Unsigned, Nint)
-let signed_long = Tnum(Signed, Nlong)
-let unsigned_long = Tnum(Unsigned, Nlong)
+let signed_char = Tnum(Signed, Char)
+let signed_int = Tnum(Signed, Int)
+let unsigned_int = Tnum(Unsigned, Int)
+let signed_long = Tnum(Signed, Long)
+let unsigned_long = Tnum(Unsigned, Long)
 
 (* let global_t_signed_int = Tnum(Signed, Int) *)   
 
