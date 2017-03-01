@@ -10,6 +10,13 @@ let global_env = Hashtbl.create 17
 let struct_env : (string, var_decl list)Hashtbl.t = Hashtbl.create 17
 let fun_env = Hashtbl.create 17
 
+(* Constantes de type *) 
+let signed_char = Tnum(Signed, Nchar)
+let signed_int = Tnum(Signed, Nint)
+let unsigned_int = Tnum(Unsigned, Nint)
+let signed_long = Tnum(Signed, Nlong)
+let unsigned_long = Tnum(Unsigned, Nlong)
+
 (* let global_t_signed_int = Tnum(Signed, Int) *)   
 
 let add_global_env tab key v = 
@@ -70,12 +77,13 @@ let rec type_eq t1 t2 =
 	| _ -> false 
 	
 
-	
+(* Ancienne fonction rank (en recursif) *)
+(*	
 let rec rank t = 
 	match t with 
 	| Tnull -> 0
 	| Tdouble -> 100
-	| Tnum(Unsigned, i ) -> 1 ° rank (Tnum(Signed, i))
+	| Tnum(Unsigned, i ) -> 1 + rank (Tnum(Signed, i))
 	| Tnum(_, Char) -> 7
 	| Tnum(_, Short) -> 15
 	| Tnum(_, Int) -> 31
@@ -84,13 +92,11 @@ let rec rank t =
 
 
 let typ_lt t1 t2 = 
-	arith t1 && t2 && (rank t1) < (rank t2)
+	arith t1 && arith t2 && (rank t1) < (rank t2)
 	
 let typ_lte t1 t2 = 
-	type_lt t1 t2 || type_eq t1 t2
-
-
-
+	typ_lt t1 t2 || type_eq t1 t2
+*)
 
 let rank t = 
 	let rank_aux n = match n with
@@ -193,26 +199,18 @@ let rec type_expr env e =
 			with 
 				Not_found -> error f.info ("La fonction " ^ f.node ^ " n'existe pas")
 		end
-	(*| Ebinop(e0,op,e1) -> 
-		let te0 = type_expr env e0 in
-		begin 
-			match op with
-			| And | Or -> 
-			| Eq | Neq | Ge | Gt | Le | Lt ->
-			| Add | Mult | Div | Sub | Mod ->
-	*)
 	| Ebinop(e1, op, e2) ->
 		let te1 = type_expr env e1 in 
 		let te2 = type_expr env e2 in
 		let t1 = te1.info in
 		let t2 = te2.info in
-		let nte2, nte2 = 
-			if arith t1 && arith t2 && not type_eq t1 t2 then
-				if is_double t1 then te1, mk_cast Tdouble te2
-				else if is_double t2 then mk_cast Tdouble te1, t2
+		let nte1, nte2 = 
+			if arith t1 && arith t2 && not (type_eq t1 t2) then
+				if type_eq t1 Tdouble then te1, mk_cast Tdouble te2
+				else if type_eq t2 Tdouble then mk_cast Tdouble te1, te2
 				else
-					let te1 = if type_lt t1 signed_int then mk_cast signed_int te1 else te1 in 
-					let te2 = if type_lt t2 signed_int then mk_cast signed_int te2 else te2 in 
+					let te1 = if inf_type t1 signed_int then mk_cast signed_int te1 else te1 in 
+					let te2 = if inf_type t2 signed_int then mk_cast signed_int te2 else te2 in 
 					let t1 = te1.info in
 					let t2 = te2.info in
 					if type_eq t1 unsigned_long then te1, mk_cast unsigned_long te2
@@ -220,9 +218,14 @@ let rec type_expr env e =
 					else if type_eq t1 signed_long then te1, mk_cast signed_long te2
 					else if type_eq t2 signed_long then mk_cast signed_long te1, te2
 					else if type_eq t1 unsigned_int then te1, mk_cast unsigned_int te2
-					else if type_eq t2 unsigned_int then mk_cast unsigned_int te1, te2
+					else if type_eq t2 unsigned_int then mk_cast unsigned_int te1, te2 else te1, te2
 			else 
 				te1, te2
+		in
+		begin 
+			match op with
+			| _ -> assert false 
+		end
 	|Eassign (e1, e2) -> 
 			let te1 = type_lvalue env e1 in
 			let te2 = type_expr env e2 in
