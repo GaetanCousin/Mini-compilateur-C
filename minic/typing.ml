@@ -84,7 +84,13 @@ let rec type_bf t =
 	  Tpointer tt -> type_bf tt
 	| Tstruct id -> Hashtbl.mem struct_env id.node
 	| _ -> true
-;;
+
+let mk_node t e = { info = t ; node = e }
+
+let mk_cast t e = 
+	if not (compatible t e.info) then assert false 
+	else 
+		mk_node t (Ecast(t,e))
 
 let type_var_decl vd = 
     let _ = 
@@ -167,8 +173,7 @@ let rec type_expr env e =
 			if not (compatible te1.info te2.info) then 
 				error e1.info "Type incompatible pour l'affectation" 
 			else 
-				let cte2 = mk_node te1.info (Ecast(te1.info, te2)) in 
-				mk_node te1.info (Eassign(te1, cte2))		
+				mk_node te1.info (Eassign(te1, mk_cast te1.info te2))		
 	| _ -> type_lvalue env e  
 
 and type_lvalue env e =
