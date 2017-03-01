@@ -133,15 +133,20 @@ let rec type_expr env e =
 		let tparams = List.map (type_expr env) params in
 		begin
 			try 
-				let tret, _ , args = Hashtbl.find fun_env f.node in
+				let tret, _ , args, _ = Hashtbl.find fun_env f.node in
 				try 
+					let new_params = 
 					(* Compare les deux listes deux à deux pour tester la cohérence de type *)
-					List.iter2 (fun e  (t, x) ->  
+					List.map2 (fun e  (t, x) ->  
 						if not (compatible e.info t) then
-							error x.info ("Type invalide pour le paramètre " ^ x.node ^ " de " ^ f.node))
+							error x.info ("Type invalide pour le paramètre " ^ x.node ^ " de " ^ f.node)
+							else
+								mk_node t (Ecast(t,e))
+							)
 							tparams
-							args;
-					mk_node tret (Ecall(f, tparams))
+							args
+					in
+					mk_node tret (Ecall(f, new_params))
 				with
 					(* Les listes ont deux tailles différentes *) 
 					Invalid_argument _ -> error f.info ("Nombre d'argument invalide pour " ^ f.node)	
@@ -155,12 +160,15 @@ let rec type_expr env e =
 			| And | Or -> 
 			| Eq | Neq | Ge | Gt | Le | Lt ->
 			| Add | Mult | Div | Sub | Mod ->
-	
-	|Eassign (v, e0) -> 
-		begin 
-			let te0 = type_expr env e0 in
-			*) 
-		
+	*)
+	|Eassign (e1, e2) -> 
+			let te1 = type_lvalue env e1 in
+			let te2 = type_expr env e2 in
+			if not (compatible te1.info te2.info) then 
+				error e1.info "Type incompatible pour l'affectation" 
+			else 
+				let cte2 = mk_node te1.info (Ecast(te1.info, te2)) in 
+				mk_node te1.info (Eassign(te1, cte2))		
 	| _ -> type_lvalue env e  
 
 and type_lvalue env e =
@@ -229,7 +237,7 @@ let type_decl d =
 			error ident.info "Type de retour invalide" 
 		else 
 			begin
-				add_global_env fun_env ident (ty, ident, args); 
+				add_global_env fun_env ident (ty, ident, args, bloc = None); 
 				let t_args = check_var_decl args in 
 				let t_block = match bloc with 
 				| None -> None 
