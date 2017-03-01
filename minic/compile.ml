@@ -1,5 +1,7 @@
 open Ast 
 open Amd64
+open Typing
+
 
 let size_of t = 
 	match t with
@@ -16,6 +18,9 @@ let align_of t =
 	| _ -> size_of t
 
 
+let compile_block lab_fin rbp_offset env body = assert false 
+
+
 let compile_decl (atext, adata) d =
 	match d with 
 	| Dstruct _ -> assert false
@@ -29,12 +34,17 @@ let compile_decl (atext, adata) d =
 			space n 
 			
 	| Dfun (_, _, _, None) -> atext, adata
-	| Dfun (tret, f, params, Some body) -> 
+	| Dfun (tret, f, params, Some body) ->
+	
+		let env = Env.empty in
+		let lab_fin = f.node ^"_fin" in
+		let max_rbp_offset, body_code = compile_block lab_fin (-8) env body in
 		let code =
-			label f.node ++
+			glabel f.node ++
+				comment (" On rentre dasn la fonction " ^ f.node) ++ 
 				pushq ~%rbp ++
 				mov ~%rsp ~%rbp ++
-				
+				addq ~$max_rbp_offset ~%rsp ++
 				
 				(* beaucoup de chose à faire *)
 				

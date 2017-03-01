@@ -218,12 +218,17 @@ let rec type_expr env e =
 					else if type_eq t1 signed_long then te1, mk_cast signed_long te2
 					else if type_eq t2 signed_long then mk_cast signed_long te1, te2
 					else if type_eq t1 unsigned_int then te1, mk_cast unsigned_int te2
-					else if type_eq t2 unsigned_int then mk_cast unsigned_int te1, te2 else te1, te2
+					else if type_eq t2 unsigned_int then mk_cast unsigned_int te1, te2 
+					else te1, te2
 			else 
 				te1, te2
 		in
+		let t1 = te1.info in
+		let t2 = te2.info in
 		begin 
 			match op with
+			(*| And | Or -> if compatible t1 t2 && compatible t2 Tdouble 
+							then mk_node signed_int Ebinop(nte1, op, nte2)*)
 			| _ -> assert false 
 		end
 	|Eassign (e1, e2) -> 

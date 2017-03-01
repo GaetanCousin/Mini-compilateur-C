@@ -43,7 +43,10 @@ let () =
     let p = Parser.file Lexer.token lb in
     close_in c;
     if !parse_only then exit 0;
-    let tp = Typing.type_prog p in ()
+    let tp = Typing.type_prog p in 
+    let code = Compile.compile_prog tp in
+    let out_file = Filename.chop_suffix file ".c" in
+    Amd64.print_in_file ~file:(out_file ^ ".s") code
 
   with
     | Lexical_error s ->

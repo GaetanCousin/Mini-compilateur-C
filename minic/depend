@@ -5,8 +5,12 @@ lexer.cmo : parser.cmi ast.cmi
 lexer.cmx : parser.cmx ast.cmi
 typing.cmo : ast.cmi
 typing.cmx : ast.cmi
-main.cmo : typing.cmo parser.cmi lexer.cmo ast.cmi
-main.cmx : typing.cmx parser.cmx lexer.cmx ast.cmi
+amd64.cmo : amd64.cmi
+amd64.cmx : amd64.cmi
+compile.cmo : typing.cmo ast.cmi amd64.cmi
+compile.cmx : typing.cmx ast.cmi amd64.cmx
+main.cmo : typing.cmo parser.cmi lexer.cmo compile.cmo ast.cmi amd64.cmi
+main.cmx : typing.cmx parser.cmx lexer.cmx compile.cmx ast.cmi amd64.cmx
 parser.cmi : ast.cmi
 parser.cmo : ast.cmi parser.cmi
 parser.cmx : ast.cmi parser.cmi
