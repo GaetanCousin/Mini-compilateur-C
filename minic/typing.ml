@@ -68,6 +68,28 @@ let rec type_eq t1 t2 =
 	| Tstruct id1, Tstruct id2 -> id1.node = id2.node 
 	| Tpointer p1, Tpointer p2 -> type_eq p1 p2
 	| _ -> false 
+	
+
+	
+let rec rank t = 
+	match t with 
+	| Tnull -> 0
+	| Tdouble -> 100
+	| Tnum(Unsigned, i ) -> 1 ° rank (Tnum(Signed, i))
+	| Tnum(_, Char) -> 7
+	| Tnum(_, Short) -> 15
+	| Tnum(_, Int) -> 31
+	| Tnum(_, Long) -> 63
+	| _ -> assert false 
+
+
+let typ_lt t1 t2 = 
+	arith t1 && t2 && (rank t1) < (rank t2)
+	
+let typ_lte t1 t2 = 
+	type_lt t1 t2 || type_eq t1 t2
+
+
 
 
 let rank t = 
@@ -179,6 +201,28 @@ let rec type_expr env e =
 			| Eq | Neq | Ge | Gt | Le | Lt ->
 			| Add | Mult | Div | Sub | Mod ->
 	*)
+	| Ebinop(e1, op, e2) ->
+		let te1 = type_expr env e1 in 
+		let te2 = type_expr env e2 in
+		let t1 = te1.info in
+		let t2 = te2.info in
+		let nte2, nte2 = 
+			if arith t1 && arith t2 && not type_eq t1 t2 then
+				if is_double t1 then te1, mk_cast Tdouble te2
+				else if is_double t2 then mk_cast Tdouble te1, t2
+				else
+					let te1 = if type_lt t1 signed_int then mk_cast signed_int te1 else te1 in 
+					let te2 = if type_lt t2 signed_int then mk_cast signed_int te2 else te2 in 
+					let t1 = te1.info in
+					let t2 = te2.info in
+					if type_eq t1 unsigned_long then te1, mk_cast unsigned_long te2
+					else if type_eq t2 unsigned_long then mk_cast unsigned_long te1, te2
+					else if type_eq t1 signed_long then te1, mk_cast signed_long te2
+					else if type_eq t2 signed_long then mk_cast signed_long te1, te2
+					else if type_eq t1 unsigned_int then te1, mk_cast unsigned_int te2
+					else if type_eq t2 unsigned_int then mk_cast unsigned_int te1, te2
+			else 
+				te1, te2
 	|Eassign (e1, e2) -> 
 			let te1 = type_lvalue env e1 in
 			let te2 = type_expr env e2 in
