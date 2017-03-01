@@ -58,6 +58,18 @@ let compatible t1 t2 =
 	in
 	compat_aux t1 t2 || compat_aux t2 t1
 
+
+let rec type_eq t1 t2 = 
+	match t1, t2 with 
+	| Tnull, Tnull
+	| Tvoid, Tvoid 
+	| Tdouble, Tdouble -> true 
+	| Tnum(s1, k1), Tnum(s2, k2) -> s1 = s2 && k1 = k2
+	| Tstruct id1, Tstruct id2 -> id1.node = id2.node 
+	| Tpointer p1, Tpointer p2 -> type_eq p1 p2
+	| _ -> false 
+
+
 let rank t = 
 	let rank_aux n = match n with
 	   Char -> 7
