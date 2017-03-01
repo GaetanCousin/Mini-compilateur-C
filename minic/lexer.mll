@@ -108,6 +108,8 @@ rule token = parse
       { EQ }
   | "!="
       { NEQ }
+  | "!"
+	  { NOT }
   | ">"
       { GT }
   | ">="
