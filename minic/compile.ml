@@ -23,9 +23,45 @@ let round8 n =
 	if n mod 8 = 0 then n else ((n/8) + 1 ) * 8;;
 
 
-let compile_const c = assert false 
-let compile_cast t = assert false 
-
+let compile_const c = 
+	match c with 
+	| Cint (s, Int, i) -> movl ~$i ~%r10d
+	| Cint (_, _, i) -> (* Long *) 
+	  movabsq (string_of_int i) ~%r10
+	
+	| Cstring _ -> assert false
+	| Cdouble _ -> assert false 
+	
+(* cast la valeur dans r10 de type tfrom en type tto *)
+let compile_cast tfrom tto = 
+	let size_tfrom = size_of tfrom in
+	let size_tto = size_of tto in
+	match tfrom, tto with 
+	| (Tvoid | Tstruct _ ), _ -> assert false 
+	| _, (Tvoid | Tstruct _) -> assert false 
+	| _ when size_tfrom = size_tto -> nop
+	| _ when size_tto < size_tfrom -> 
+	  let mask = (1 lsl (size_tto * 8) ) - 1 in
+	  andq ~$mask ~%r10
+	| Tnum (Signed, Char), Tnum(_, Short) ->  movsbw ~%r10b ~%r10w
+	| Tnum (Unsigned, Char), Tnum(_, Short) -> movzbw ~%r10b ~%r10w
+	| Tnum (Signed, Char), Tnum(_, Int) -> movsbl ~%r10b ~%r10d
+	| Tnum (Unsigned, Char), Tnum(_, Int) -> movzbl ~%r10b ~%r10d 
+	| Tnum (Signed, Char), Tnum(_, Long) -> movsbq ~%r10b ~%r10
+	| Tnum (Unsigned, Char), Tnum(_, Long) -> movzbq ~%r10b ~%r10
+	
+	| Tnum (Signed, Short), Tnum(_, Int) -> movswl ~%r10w ~%r10d
+	| Tnum (Unsigned, Short), Tnum(_, Int) -> movzwl ~%r10w ~%r10d
+	| Tnum (Signed, Short), Tnum(_, Long) -> movswq ~%r10w ~%r10
+	| Tnum (Unsigned, Short), Tnum(_, Long) -> movzwq ~%r10w ~%r10
+	
+	| Tnum (Signed, Int), Tnum(_, Long) -> movslq ~%r10d ~%r10 
+	| Tnum (Unsigned, Int), Tnum(_, Long) -> andq ~$0xffffffff ~%r10
+	
+	| _ -> assert false   
+	
+	
+	
 let rec compile_expr_reg env e = 
 (* code qui place le résultat dans r10 *)
 	match e.node with 
@@ -33,7 +69,7 @@ let rec compile_expr_reg env e =
 	
 	| Ecast (t, e0) -> 
 	  compile_expr_reg env e0
-	  ++ compile_cast t 
+	  ++ compile_cast e0.info t 
 	  
 	| _ -> failwith "todo"
 
@@ -47,10 +83,8 @@ let rec compile_expr env e =
 		compile_expr_reg env e ++ pushq ~%r10
 		
 	| t -> let n = size_of t in
-	  let mask = if n = 4 then 0xffffffff
-		else if n = 2 then 0xffff
-		else 0xff
-	  in
+	  let mask = ( 1 lsl n * 8) - 1 in
+	  compile_expr_reg env e ++
 	  andq ~$mask ~%r10 ++
 	  pushq ~%r10
 	
@@ -158,7 +192,7 @@ let compile_prog p =
 		List.fold_left compile_decl (nop, nop) p
 	in 
 { 
-	text = nop;
+	text = text;
 	
-	data = nop;
+	data = data;
 }
