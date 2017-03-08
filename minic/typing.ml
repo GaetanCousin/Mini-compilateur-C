@@ -27,11 +27,11 @@ let add_global_env tab key v =
 		
 		
 let num t  = match t with 
-	|Tstruct _ | Tvoid -> false
+	| Tstruct _ | Tvoid -> false
 	| _ -> true 
 	
 let arith t  = match t with 
-	|Tstruct _ | Tvoid | Tpointer _ -> false
+	| Tstruct _ | Tvoid | Tpointer _ -> false
 	| _ -> true   
 		
 let check_var_decl var_decl = 
@@ -75,25 +75,6 @@ let rec type_eq t1 t2 =
 	| Tstruct id1, Tstruct id2 -> id1.node = id2.node 
 	| Tpointer p1, Tpointer p2 -> type_eq p1 p2
 	| _ -> false 
-	
-
-(* Ancienne fonction rank (en recursif) *)
-(*	
-let rec rank t = 
-	match t with 
-	| Tnull -> 0
-	| Tdouble -> 100
-	| Tnum(Unsigned, i ) -> 1 + rank (Tnum(Signed, i))
-	| Tnum(_, Char) -> 7
-	| Tnum(_, Short) -> 15
-	| Tnum(_, Int) -> 31
-	| Tnum(_, Long) -> 63
-	| _ -> assert false 
-
-
-let typ_lt t1 t2 = 
-	arith t1 && arith t2 && (rank t1) < (rank t2)
-	*)
 
 let rank t = 
 	let rank_aux n = match n with
@@ -121,7 +102,7 @@ let max_type t1 t2 =
 
 let rec type_bf t =
 	match t with
-	  Tpointer tt -> type_bf tt
+	| Tpointer tt -> type_bf tt
 	| Tstruct id -> Hashtbl.mem struct_env id.node
 	| _ -> true
 
@@ -231,22 +212,22 @@ let rec type_expr env e =
 		let t2 = nte2.info in
 		begin 
 			match op with
-			|And | Or -> if compatible t1 t2 && compatible t1 Tdouble 
+			| And | Or -> if compatible t1 t2 && compatible t1 Tdouble 
 						 then mk_node signed_int (Ebinop(nte1,op,nte1)) 
 						 else error e.info "Type invalide pour -"
-			|Add | Sub | Mult | Div -> if compatible t1 t2 && compatible t1 Tdouble
+			| Add | Sub | Mult | Div -> if compatible t1 t2 && compatible t1 Tdouble
 									   then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
 									   else error e.info "Type invalide pour -"
-			|Eq | Neq | Ge | Gt | Le | Lt -> if compatible t1 t2 
+			| Eq | Neq | Ge | Gt | Le | Lt -> if compatible t1 t2 
 											 then mk_node signed_int (Ebinop(nte1,op,nte1))
 											 else error e.info "Type invalide pour -"
-			|Mod -> if compatible t1 t2 && typ_lte (max_type t1 t2) unsigned_long
+			| Mod -> if compatible t1 t2 && typ_lte (max_type t1 t2) unsigned_long
 					then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
 					else error e.info "Type invalide pour -"
 			
 			| _ -> assert false 
 		end
-	|Eassign (e1, e2) -> 
+	| Eassign (e1, e2) -> 
 			let te1 = type_lvalue env e1 in
 			let te2 = type_expr env e2 in
 			if not (compatible te1.info te2.info) then 
@@ -256,7 +237,7 @@ let rec type_expr env e =
 	| _ -> type_lvalue env e  
 and type_lvalue env e =
 		match e.node with
-		|Eident id -> 
+		| Eident id -> 
 			let t = 
 				try 
 					try
@@ -294,6 +275,30 @@ let rec type_instr ty env t =
 	| Sskip -> mk_node Tvoid Sskip
 	| Sexpr e -> let te = type_expr env e in 
 							mk_node te.info (Sexpr te)
+	(*| Sif (e,i1,i2) -> 
+		let te = type_expr env e in 
+		if not type_eq te.info Tnum then  error e.info "Type incompatible dans la condition if"
+		else let ti1 = type_instr ty env i1 in
+			 let ti2 = type_instr ty env i2 in
+			 mk_node Tvoid (Sif(e,ti1,ti2))
+	| Sfor (e1, c, e2, i) -> 
+		let  te1 = List.map type_expr (env e1) in
+		
+		match c with 
+		|None 
+		|Some -> let tc = type_expr env c in
+			    if not type_eq te.info Tnum then  error e.info "Type incompatible dans la condition for" 
+			    else let te2 = List.map type_expr (env e2 ) 
+		in 
+		let ti = type_instr ty env i in
+		mk_node Tvoid (Sfor(te1,tc,te2,ti))    *)
+	(*| Sblock b -> _ *)
+	| Sreturn e -> 
+		match e with
+		| None -> mk_node Tvoid (Sreturn None)
+		| Some e -> let te = type_expr env e in 
+				 mk_node ty (Sreturn (Some te))
+
 	| _ -> assert false 
 
 let type_block ty env (var_decl, instrs )  = 
