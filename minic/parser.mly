@@ -61,15 +61,19 @@
 %token <Ast.signedness*Ast.num*int> CINT
 
 (* priorite *)
+%nonassoc thenif
 %nonassoc ELSE
+
+%right ASSIGN
 %left OR
 %left AND
-%left NOT
-%left EQ NEQ GE GT LE LT
+%left EQ NEQ
+%left GE GT LE LT
 %left PLUS MINUS
-%left MULT DIV
+%left MULT DIV MODULO
+%right NOT PP MM ADDRESS ustar uminus uplus
+%left RP LBRACKET POINTER DOT
 
-%right ustar uminus
 
 
 /* Point d'entrée */
@@ -117,7 +121,7 @@ instr_:
 | SEMI													{ Sskip 	}
 | e = expr ; SEMI 										{ Sexpr e	}
 | IF ; LP ; e = expr ; RP ; i1=instr; ELSE ; i2=instr   { Sif(e,i1,i2) }  				
-| IF ; LP ; e=expr ; RP; i1= instr						{ Sif(e,i1,loc_dummy Sskip ) }
+| IF ; LP ; e=expr ; RP; i1= instr	%prec thenif		{ Sif(e,i1,loc_dummy Sskip ) }
 | FOR ; LP ; l1 = l_expr; e = option(expr) ; l2 = l_expr ; RP ; i = instr { Sfor(l1, e ,l2,i)}
 | WHILE ; e = option(expr) ; i = instr 					{ Sfor( [], e, [], i)  }
 | RETURN ; e = option(expr) ; SEMI 							{ Sreturn e }
@@ -173,7 +177,7 @@ const:
 |c = CINT 		{ let s, t, i = c in Econst(Cint(s, t, i))}
 ;
 
-op:
+%inline op:
 |PLUS       { Add }
 |MINUS      { Sub }
 |DIV        { Div }
@@ -189,9 +193,11 @@ op:
 |OR         { Or  }
 ;
 
+(*
 %inline incr:
 |PP	{ incr }
 |MM { decr }
+*)
 
 expr_:
 | c = const							{ c 				}
@@ -201,7 +207,7 @@ expr_:
 | MULT ; e = expr 	%prec ustar		{ Eunop(Deref, e)	}
 | NOT ; e = expr 					{ Eunop(Not, e)	}
 | LP ; e = expr_ ; RP 				{ e 				}
-| PLUS ; e = expr_					{ e 				}
+| PLUS ; e = expr_	%prec uplus		{ e 				}
 | PP; e = expr	 					{ Eunop(Preincr,e)	}
 | MM; e = expr	 					{ Eunop(Predecr,e)	}
 | e = expr ; MM						{ Eunop(Postdecr,e)	}
