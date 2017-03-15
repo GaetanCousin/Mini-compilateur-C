@@ -115,12 +115,14 @@ let mk_cast t e =
 
 let type_var_decl vd = 
     let _ = 
-	List.fold_left (fun seen (t , id) ->
-			if type_bf t && t <> Tvoid && not (List.mem id.node seen) then
-				id.node :: seen
-			else error id.info "champ ou variable incorrect"
-			) [] vd
-    in ()	
+	List.fold_left (fun seen (typ , id) ->
+			if typ = Tvoid || not (type_bf typ) then
+				error id.info "type de variable incorrect"
+			else if List.mem id.node seen then
+				error id.info ("Redéfinition de l'identifiant " ^ id.node)
+			else
+          		id.node :: seen) [] vd
+  	in vd
 
 let add_env env vd = 
 	List.fold_left (fun acc (t, id) -> Env.add id.node t acc ) env

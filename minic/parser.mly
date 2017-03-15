@@ -125,6 +125,7 @@ instr_:
 | FOR ; LP ; l1 = l_expr; e = option(expr) ; l2 = l_expr ; RP ; i = instr { Sfor(l1, e ,l2,i)}
 | WHILE ; e = option(expr) ; i = instr 					{ Sfor( [], e, [], i)  }
 | RETURN ; e = option(expr) ; SEMI 							{ Sreturn e }
+| b = block                                     { Sblock b}
 ;
 
 instr:
