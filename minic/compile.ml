@@ -31,9 +31,19 @@ let compile_const c =
 	
 	| Cstring _ -> assert false
 	| Cdouble _ -> assert false 
+
+
+let reg_size_of t =
+	match size_of t with 
+	| 1 -> `b
+	| 2 -> `w
+	| 4 -> `l
+	| _ -> `q
 	
 (* cast la valeur dans r10 de type tfrom en type tto *)
-let compile_cast tfrom tto = 
+let compile_cast tfrom tto =
+	let tfrom = if tfrom = Tnull then Tnum(Unsigned, Long) else tfrom in
+	let tto = if tto = Tnull then Tnum(Unsigned, Long) else tto in 
 	let size_tfrom = size_of tfrom in
 	let size_tto = size_of tto in
 	match tfrom, tto with 
@@ -59,13 +69,49 @@ let compile_cast tfrom tto =
 	| Tnum (Unsigned, Int), Tnum(_, Long) -> andq ~$0xffffffff ~%r10
 	
 	| _ -> assert false   
+
+
+let rec compile_lvalue_reg env e = 
+	(* code qui place l'adresse de e dans r10 *)
+	match e.node with 
+	| Eident x -> 
+	  begin 
+		try 
+			let offset = Env.find x.node env in
+			(* mov ~%rbp ~%r10 ++ 
+			   addq ~%offset ~%r10
+			*)
+			leaq (addr ~%rbp ~ofs:offset) ~%r10
+		with Not_found -> 
+			movq ~:(x.node) ~%r10
+	  end
+	| _ -> failwith "todo lvalue"
 	
 	
-	
-let rec compile_expr_reg env e = 
+and compile_expr_reg env e = 
 (* code qui place le résultat dans r10 *)
 	match e.node with 
 	| Econst c -> compile_const c 
+
+	| Eident _ | Eunop (Deref, _) | Eaccess _ ->
+
+		let reg10 = r10_ (reg_size_of e.info) in	 
+	 	compile_lvalue_reg env e ++ 
+	 	mov (addr ~%r10) ~%r10
+
+	| Eunop (Addr, e0) -> compile_lvalue_reg env e0
+
+	| Eassign (e1, e2) ->
+		(* r10 = e1 et r11 = e2 *)
+		let e2code = compile_expr env e2 in
+		let e1code = compile_lvalue_reg env e1 in
+		let reg = r11_ (reg_size_of e1.info) in
+		e2code ++
+		e1code ++
+		popq ~%r11 ++ 
+		mov ~%reg (addr ~%r10) ++
+		movq ~%r11 ~%r10  
+
 	
 	| Ecast (t, e0) -> 
 	  compile_expr_reg env e0
@@ -73,8 +119,10 @@ let rec compile_expr_reg env e =
 	  
 	| _ -> failwith "todo"
 
+
+
 (* renvoie (max_offset, code) *)
-let rec compile_expr env e = 
+and compile_expr env e = 
 	match e.info with 
 	| Tstruct _ -> assert false (* A voir si on le traite ou pas *)
 	| Tvoid -> compile_expr_reg env e

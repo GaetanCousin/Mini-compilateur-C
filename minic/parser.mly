@@ -220,7 +220,8 @@ expr_:
 | id = ident ; LP ; e = l_expr ; RP	{ Ecall( id, e) }
 | SIZEOF ; LP ; ct = cplx_type ; RP	{ let t = untyp ct in Esizeof t }
 | LP ; ct = cplx_type ; RP ; e = expr { let t = untyp ct in Ecast( t, e ) 	}
-| ADDRESS ; e = expr      { Eunop(Addr,e) }  
+| ADDRESS ; e = expr      { Eunop(Addr,e) }
+| id = ident ; DOT ; e = expr { Eaccess(e,id)}  
 ;
 
 
