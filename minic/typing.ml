@@ -125,7 +125,7 @@ let type_var_decl vd =
   	in vd
 
 let add_env env vd = 
-	List.fold_left (fun acc (t, id) -> Env.add id.node t acc ) env
+	List.fold_left (fun acc (t, id) -> Env.add id.node t acc ) env vd
 
 let type_const c = 
 	match c with
@@ -308,8 +308,17 @@ let rec type_instr ty env t =
 	
 
 and type_block ty env (var_decl, instrs )  = 
-	(check_var_decl var_decl,
-	List.map (type_instr ty env) instrs)
+(*	(check_var_decl var_decl,
+	List.map (type_instr ty env) instrs) *)
+
+  let tvars = type_var_decl var_decl in
+  let new_env = add_env env var_decl in
+  let tinstrs = List.map (fun i ->
+      let ti = type_instr ty new_env i in
+      
+      ti) instrs
+  in
+  (tvars, tinstrs) 
 
 let type_decl d = 
 	match d with 
@@ -336,9 +345,7 @@ let type_decl d =
 				let t_block = match bloc with 
 				| None -> None 
 				| Some body ->
-					let env = List.fold_left(fun acc(t, id) -> 
-						Env.add id.node t acc) Env.empty args
-					in 
+					let env = add_env Env.empty args in
 					let t_body = type_block ty env body in 
 					Some t_body
 			in 
