@@ -28,7 +28,7 @@ type constant =
 type binop = Add | Mult | Div | Sub | Mod | Eq | Neq | Ge | Gt
 			| Le | Lt | And | Or 
 
-type unop = Neg | Deref | Preincr | Postincr | Predecr | Postdecr | Not
+type unop = Neg | Deref | Preincr | Postincr | Predecr | Postdecr | Not | Addr
 
 type 'info expr = ('info, 'info expr_node) node
 and 'info expr_node =
@@ -58,6 +58,7 @@ and 'info statement_node =
   | Sexpr of 'info expr
   | Sif of 'info expr * 'info statement * 'info statement 
   | Sfor of 'info expr list *  ('info expr option ) * 'info expr list * 'info statement
+  | Sblock of 'info block
   | Sreturn of 'info expr option 
   (* à compléter  FINI*)
 

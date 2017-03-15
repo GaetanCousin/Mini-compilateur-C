@@ -168,15 +168,17 @@ let rec type_expr env e =
 				let tret, _ , args, _ = Hashtbl.find fun_env f.node in
 				try 
 					let new_params = 
-					(* Compare les deux listes deux à deux pour tester la cohérence de type *)
-					List.map2 (fun e  (t, x) ->  
-						if not (compatible e.info t) then
-							error x.info ("Type invalide pour le paramètre " ^ x.node ^ " de " ^ f.node)
-							else
-								mk_node t (Ecast(t,e))
-							)
-							tparams
-							args
+						if args = [] then tparams
+						else
+						(* Compare les deux listes deux à deux pour tester la cohérence de type *)
+						List.map2 (fun e  (t, x) ->  
+							if not (compatible e.info t) then
+								error x.info ("Type invalide pour le paramètre " ^ x.node ^ " de " ^ f.node)
+								else
+									mk_node t (Ecast(t,e))
+								)
+								tparams
+								args
 					in
 					mk_node tret (Ecall(f, new_params))
 				with
@@ -275,33 +277,35 @@ let rec type_instr ty env t =
 	| Sskip -> mk_node Tvoid Sskip
 	| Sexpr e -> let te = type_expr env e in 
 							mk_node te.info (Sexpr te)
-	(*| Sif (e,i1,i2) -> 
+	| Sif (e,i1,i2) -> 
 		let te = type_expr env e in 
-		if not type_eq te.info Tnum then  error e.info "Type incompatible dans la condition if"
+		if not (num te.info) then  error e.info "il faut un type num dans la condition if"
 		else let ti1 = type_instr ty env i1 in
 			 let ti2 = type_instr ty env i2 in
-			 mk_node Tvoid (Sif(e,ti1,ti2))
+			 mk_node Tvoid (Sif(te,ti1,ti2))
 	| Sfor (e1, c, e2, i) -> 
-		let  te1 = List.map type_expr (env e1) in
-		
-		match c with 
-		|None 
-		|Some -> let tc = type_expr env c in
-			    if not type_eq te.info Tnum then  error e.info "Type incompatible dans la condition for" 
-			    else let te2 = List.map type_expr (env e2 ) 
+		let  te1 = List.map (type_expr env) e1 in
+		let tc = match c with 
+		|None -> None
+		|Some c -> let tc = type_expr env c in
+			    if not (num tc.info) then  error c.info "il faut un type num dans la condition for" 
+				else Some(tc) 
 		in 
+		let te2 = List.map (type_expr env) e2  in
 		let ti = type_instr ty env i in
-		mk_node Tvoid (Sfor(te1,tc,te2,ti))    *)
-	(*| Sblock b -> _ *)
-	| Sreturn e -> 
-		match e with
-		| None -> mk_node Tvoid (Sreturn None)
-		| Some e -> let te = type_expr env e in 
-				 mk_node ty (Sreturn (Some te))
+		mk_node Tvoid (Sfor(te1,tc,te2,ti))    
+	| Sblock b -> let tb = type_block ty env b in
+		mk_node ty (Sblock(tb))
 
-	| _ -> assert false 
+	| Sreturn e ->   
+		let te = match e with
+		| None -> None
+		| Some e -> Some(type_expr env e) 
+		in
+		mk_node Tvoid (Sreturn te)
+	
 
-let type_block ty env (var_decl, instrs )  = 
+and type_block ty env (var_decl, instrs )  = 
 	(check_var_decl var_decl,
 	List.map (type_instr ty env) instrs)
 
