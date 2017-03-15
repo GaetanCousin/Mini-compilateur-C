@@ -20,7 +20,9 @@
   
   let lexical_error s = failwith ("Lexical error : " ^ s)
   
-  let comment_cpt = ref 0   
+  let comment_cpt = ref 0  
+
+  let str_buff = Buffer.create 512 
   
   let keyword_or_ident =
     let h = Hashtbl.create 17 in
@@ -54,15 +56,24 @@
       
 }
 
+
+
 let digit = ['0'-'9']
 let alpha = ['a'-'z' 'A'-'Z']
+let integer = digit+
+let float = (integer '.' digit* | '.' integer) (('e'|'E')'-'?integer)?
 let ident = (alpha | '_') (digit | alpha | ['_'])*
-let char = ([' ' - '~']#['\'' '\\' '\"']) | "\\\\" | "\\n" | "\\\'" | '\\' '\"'
+let hexa = digit | ['a'-'f' 'A'-'F']
+let char =
+  [^'\000'-'\x1f' '\\' '\'' '\"']
+  | '\\' ('n' | 't' | '\'' |'\"')
+  | "\\x" hexa hexa
+
 let chaine = char*
 let integer = digit+
 
 rule token = parse
-  | '\n' 
+  | '\n'
       { newline lexbuf; token lexbuf }
   | [' ' '\t' '\r']+
       { token lexbuf }
@@ -154,19 +165,8 @@ rule token = parse
       { raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) }
       
 and comment = parse
+  | "*/" { () }
+  | '\n' { newline lexbuf; comment lexbuf }
+  | eof  { raise (Lexical_error "unterminated comment") }
+  | _    { comment lexbuf }
 
-  | "*/"
-	  { comment lexbuf }
-  | _
-      { comment lexbuf }
-  | eof
-      { lexical_error "unterminated comment" }
-      
-(*and string stg = parse
-  | char
-	  { char::stg ; string stg lexbuf }
-  | "\\x"
-	  {  }
-  | ("'"| '"')
-	  { stg }
-*)

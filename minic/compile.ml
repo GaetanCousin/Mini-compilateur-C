@@ -2,6 +2,21 @@ open Ast
 open Amd64
 open Typing
 
+let string_env  = Hashtbl.create 17
+
+let gen_label =
+	let counter = ref (-1) in
+	fun prefix -> Printf.sprintf "label_%s_%d" prefix !counter
+
+let int_registers = [ rdi ; rsi ; rdx ; rcx ; r8 ; r9 ]
+
+let rec fold2 f acc l1 l2 = 
+	match l1, l2 with 
+	| [], _ -> acc 
+	| _, [] -> failwith "fold2"
+	| x1 :: ll1, x2 :: ll2 ->
+	fold2 f (f acc x1 x2) ll1 ll2 
+
 
 let size_of t = 
 	match t with
@@ -29,7 +44,19 @@ let compile_const c =
 	| Cint (_, _, i) -> (* Long *) 
 	  movabsq (string_of_int i) ~%r10
 	
-	| Cstring _ -> assert false
+	| Cstring s -> 
+		let label = 
+			try 
+				Hashtbl.find string_env s 
+			with
+				Not_found ->
+				let lab = gen_label "string" in 
+				Hashtbl.add string_env s lab;
+				lab
+		in
+		mov ~:label ~%r10  
+
+
 	| Cdouble _ -> assert false 
 
 
@@ -98,6 +125,31 @@ and compile_expr_reg env e =
 		let reg10 = r10_ (reg_size_of e.info) in	 
 	 	compile_lvalue_reg env e ++ 
 	 	mov (addr ~%r10) ~%r10
+
+	| Ecall (f, args) -> 
+		let tret, _, _, extern = Hashtbl.find fun_env f.node in
+		if extern then
+			let arg_code = fold2 (fun (a_code) e r -> 
+					a_code ++
+					compile_expr env e ++
+					popq ~%r) nop args int_registers
+			in
+			arg_code ++
+			xorq ~%rax ~%rax ++ (* on met le registre a 0 *)
+			call f.node ++ 
+			mov ~%rax ~%r10
+		else 
+			let size_ret = round8 (size_of tret) in
+			let arg_size, arg_code =
+				List.fold_left (fun (a_size, a_code) e -> 
+					(a_size + round8 (size_of e.info),
+					compile_expr env e ++ a_code) ) (0, nop)
+				args
+			in
+			subq ~$size_ret ~%rsp ++
+			arg_code ++
+			call f.node ++
+			addq ~$arg_size ~%rsp
 
 	| Eunop (Addr, e0) -> compile_lvalue_reg env e0
 
@@ -238,6 +290,11 @@ let compile_decl (atext, adata) d =
 let compile_prog p = 
 	let text, data =
 		List.fold_left compile_decl (nop, nop) p
+	in
+	let data = Hashtbl.fold  ( fun str lbl a_data -> 
+		a_data ++
+		label lbl ++
+		string str) string_env data
 	in 
 { 
 	text = text;
