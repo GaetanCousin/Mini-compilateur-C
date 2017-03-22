@@ -120,7 +120,7 @@ and compile_expr_reg env e =
 	match e.node with 
 	| Econst c -> compile_const c 
 
-	| Eident _ | Eunop (Deref, _) | Eaccess _ ->
+	| Eident _ | Eunop (Deref, _) | Estructvar _ ->
 
 		let reg10 = r10_ (reg_size_of e.info) in	 
 	 	compile_lvalue_reg env e ++ 

@@ -27,14 +27,11 @@
   let keyword_or_ident =
     let h = Hashtbl.create 17 in
     List.iter (fun (s, k) -> Hashtbl.add h s k)
-      [ "true",  CONST_BOOL(true);
-	"false", CONST_BOOL(false);
+      [ 
 	"not",   NOT;
 	"if",    IF;
 	"else",  ELSE;
-	"var",   VAR;
 	"double", DOUBLE;
-	"exit",  EXIT;
 	"while", WHILE;
 	"extern", EXTERN;
 	"for",   FOR;

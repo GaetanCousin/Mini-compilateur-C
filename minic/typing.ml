@@ -160,7 +160,7 @@ let rec type_expr env e =
 			else  
 				mk_node signed_int (Eunop(unop, te0))
 		end
-	| Eaccess (e0, x) ->
+	| Estructvar (e0, x) ->
 			type_eaccess type_lvalue env e0 x
 			
 	| Ecall (f, params) ->
@@ -266,7 +266,7 @@ and type_eaccess f_type env e0 x =
 							let t, _ =
 								List.find (fun (t, y) -> y.node = x.node) fields
 							in
-							mk_node t (Eaccess (te0, x))
+							mk_node t (Estructvar (te0, x))
 						with
 							Not_found -> error x.info "Champ de structure inconnu"
 						end	

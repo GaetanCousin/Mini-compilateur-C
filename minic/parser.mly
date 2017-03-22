@@ -38,21 +38,19 @@
 %}
 
 %token EOF
-%token <int32> CONST_INT
 %token <float> CONST_DOUBLE
+%token <bool> CONST_BOOL
 %token <string> CONST_CHAR
 %token <string> CONST_STRING
 %token PLUS MINUS MULT DIV PP MM
-%token <bool> CONST_BOOL
 %token AND OR NOT
 %token EQ NEQ
 %token GE GT LE LT
 %token IF ELSE
 %token LP RP LB RB
 %token <string> IDENT
-%token VAR ASSIGN
+%token ASSIGN
 %token RETURN
-%token PRINT NEWLINE EXIT
 %token SEMI
 %token WHILE FOR
 %token LBRACKET RBRACKET
@@ -122,8 +120,8 @@ instr_:
 | e = expr ; SEMI 										{ Sexpr e	}
 | IF ; LP ; e = expr ; RP ; i1=instr; ELSE ; i2=instr   { Sif(e,i1,i2) }  				
 | IF ; LP ; e=expr ; RP; i1= instr	%prec thenif		{ Sif(e,i1,loc_dummy Sskip ) }
-| FOR ; LP ; l1 = l_expr; e = option(expr) ; l2 = l_expr ; RP ; i = instr { Sfor(l1, e ,l2,i)}
-| WHILE ; e = option(expr) ; i = instr 					{ Sfor( [], e, [], i)  }
+| FOR ; LP ; l1 = l_expr; SEMI ; e = option(expr) ; SEMI; l2 = l_expr ; RP ; i = instr { Sfor(l1, e ,l2,i)}
+| WHILE ; LP ; e =expr ; RP; i = instr 					{ Sfor( [], Some(e), [], i)  }
 | RETURN ; e = option(expr) ; SEMI 							{ Sreturn e }
 | b = block                                     { Sblock b}
 ;
@@ -208,7 +206,7 @@ expr_:
 | MULT ; e = expr 	%prec ustar		{ Eunop(Deref, e)	}
 | NOT ; e = expr 					{ Eunop(Not, e)	}
 | LP ; e = expr_ ; RP 				{ e 				}
-| PLUS ; e = expr_	%prec uplus		{ e 				}
+| PLUS ; e = expr	%prec uplus		{ e.node 				}
 | PP; e = expr	 					{ Eunop(Preincr,e)	}
 | MM; e = expr	 					{ Eunop(Predecr,e)	}
 | e = expr ; MM						{ Eunop(Postdecr,e)	}
@@ -222,7 +220,6 @@ expr_:
 | SIZEOF ; LP ; ct = cplx_type ; RP	{ let t = untyp ct in Esizeof t }
 | LP ; ct = cplx_type ; RP ; e = expr { let t = untyp ct in Ecast( t, e ) 	}
 | ADDRESS ; e = expr      { Eunop(Addr,e) }
-| id = ident ; DOT ; e = expr { Eaccess(e,id)}  
 ;
 
 

@@ -44,7 +44,7 @@ and 'info expr_node =
   | Eassign of 'info expr * 'info expr
   | Ecall of ident * 'info expr list
   | Ecast of c_type * 'info expr 
-  | Eaccess of 'info expr * ident 
+
   
   (* à compléter *)
 
