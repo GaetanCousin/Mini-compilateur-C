@@ -126,6 +126,19 @@ and compile_expr_reg env e =
 	match e.node with 
 	| Econst c -> compile_const c 
 	
+	| Eunop ( unop, e ) -> 
+	  begin
+		match unop with 
+		| Neg -> failwith __LOC__
+		| Deref -> failwith __LOC__
+		| Preincr -> failwith __LOC__
+		| Postincr -> failwith __LOC__
+		| Predecr -> failwith __LOC__
+		| Postdecr -> failwith __LOC__
+		| Not -> failwith __LOC__
+		| Addr -> failwith __LOC__
+	  end
+		
 	| Ebinop (e1, op, e2) -> 
 		let e1code = compile_expr env e1 in
 		let e2code = compile_expr env e2 in
@@ -154,7 +167,9 @@ and compile_expr_reg env e =
 				  ++ (if op = Div then mov ~%ra ~%re2 
 					  else mov ~%rd ~%re2)
 				
-			| Add -> failwith __LOC__
+			| Add -> failwith __LOC__ 
+				
+				
 			| Sub -> failwith __LOC__
 			| Mult -> failwith __LOC__
 			| Eq -> failwith __LOC__
