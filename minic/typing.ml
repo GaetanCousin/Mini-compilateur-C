@@ -235,7 +235,7 @@ let rec type_expr env e =
 					then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
 					else error e.info "Type invalide pour -"
 			
-			| _ -> __LOC__
+			| _ -> failwith __LOC__
 		end
 	| Eassign (e1, e2) -> 
 			let te1 = type_lvalue env e1 in
