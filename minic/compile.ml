@@ -18,15 +18,21 @@ let rec fold2 f acc l1 l2 =
 	fold2 f (f acc x1 x2) ll1 ll2 
 
 
-let size_of t = 
+let rec size_of t = 
 	match t with
-	| Tvoid | Tnull -> assert false 
+	| Tnull -> 8
+	| Tvoid -> 0
 	| Tnum (_, Char) -> 1
 	| Tnum (_, Short) -> 2
 	| Tnum (_, Int) -> 4
 	| Tnum (_, Long) | Tdouble | Tpointer _ -> 8
-	| Tstruct _ -> assert false 
-
+	| Tstruct id -> assert false  
+	
+let is_signed t = match t with
+	| Tnum(Signed, _ ) | Tpointer _ | Tnull -> true
+	| _ -> false 
+  
+ 
 let align_of t = 
 	match t with
 	| Tstruct _ -> assert false 
@@ -119,12 +125,53 @@ and compile_expr_reg env e =
 (* code qui place le résultat dans r10 *)
 	match e.node with 
 	| Econst c -> compile_const c 
+	
+	| Ebinop (e1, op, e2) -> 
+		let e1code = compile_expr env e1 in
+		let e2code = compile_expr env e2 in
+		e1code++
+		e2code++ (* e2 dans r10 *)
+		popq ~%r11 ++ (* e1 dans r11 *)
+		begin 
+			match op with
+			| Div | Mod -> 
+				let rsize = reg_size_of e1.info in
+				let ra = rax_ rsize in
+				let rd = rdx_ rsize in
+				let re2 = r10_ rsize in
+				let re1 = r11_ rsize in
+				mov ~%re1 ~%ra ++ 
+				(if is_signed e1.info then 
+					(if rsize = `q then
+						cqto ++ idivq ~%r10
+					else
+						cltd ++ idivl ~%r10d)
+				 else
+						xor ~%rd ~%rd ++ 
+						(if rsize = `q then divq ~%r10
+						 else divl  ~%r10d)
+				)
+				  ++ (if op = Div then mov ~%ra ~%re2 
+					  else mov ~%rd ~%re2)
+				
+			| Add -> failwith __LOC__
+			| Sub -> failwith __LOC__
+			| Mult -> failwith __LOC__
+			| Eq -> failwith __LOC__
+			| Neq -> failwith __LOC__
+			| Ge -> failwith __LOC__
+			| Gt -> failwith __LOC__
+			| Le -> failwith __LOC__
+			| Lt -> failwith __LOC__
+			| And -> failwith __LOC__
+			| Or -> failwith __LOC__ 
+		end
 
 	| Eident _ | Eunop (Deref, _) | Estructvar _ ->
 
 		let reg10 = r10_ (reg_size_of e.info) in	 
 	 	compile_lvalue_reg env e ++ 
-	 	mov (addr ~%r10) ~%r10
+	 	mov (addr ~%r10) ~%reg10
 
 	| Ecall (f, args) -> 
 		let tret, _, _, extern = Hashtbl.find fun_env f.node in
@@ -169,7 +216,7 @@ and compile_expr_reg env e =
 	  compile_expr_reg env e0
 	  ++ compile_cast e0.info t 
 	  
-	| _ -> failwith "todo"
+	| _ -> failwith __LOC__
 
 
 
@@ -208,12 +255,52 @@ let rec compile_instr lab_fin rbp_offset env i =
 		| None -> nop
 		| Some e -> compile_expr env e 
 	  ) ++ jmp lab_fin
-	  
- (* | d'autre a ajouter ici *)
+	| Sif (e, i1, i2) ->  
+		let e_comp = compile_expr env e in
+		let offset1, i1_comp = compile_instr lab_fin rbp_offset env i1 in
+		let offset2, i2_comp = compile_instr lab_fin rbp_offset env i2 in
+		let label_else = gen_label "else_" in
+		let label_end_if = gen_label "end_if_" in
+    
+    max offset1 offset2,
+    e_comp ++
+    popq ~%r10 ++
+    cmpq ~$0 ~%r10  ++
+    je label_else ++
+    i1_comp ++
+    jmp label_end_if ++
+    label label_else ++
+    i2_comp ++
+    label label_end_if
+	 
+	| Sfor (l1, e, l2, i) ->
+		let e_comp = 
+			match e with
+			| None -> pushq ~$1
+			| Some e -> compile_expr env e 
+		in
+		let l1_comp = List.fold_left (fun acc e -> acc ++ compile_clean_expr env e) nop l1 in 
+		let l2_comp = List.fold_left (fun acc e -> acc ++ compile_clean_expr env e) nop l2 in 
+		let offset, i_comp = compile_instr lab_fin rbp_offset env i in
+		let label_for = gen_label "for_" in
+		let label_end_for = gen_label "end_for_" in
+		
+		offset, l1_comp ++
+		label label_for ++ 
+		e_comp ++
+		popq ~%r10 ++ 
+		cmpq ~$0 ~%r10 ++ 
+		je label_end_for ++
+		i_comp ++ 
+		l2_comp ++
+		jmp label_for ++
+		label label_end_for 	
+	
+	| Sblock b -> compile_block lab_fin rbp_offset env b 
 
 
 (* renvoie (max_offset, code) *)
-let compile_block lab_fin rbp_offset env (var_decls, instrs) =
+and compile_block lab_fin rbp_offset env (var_decls, instrs) =
 	let new_offset, new_env, debug = 
 		List.fold_left ( fun (aoffset, aenv, debug) (t, x) -> 
 			let aenv = Env.add x.node aoffset aenv in
@@ -232,7 +319,7 @@ let compile_block lab_fin rbp_offset env (var_decls, instrs) =
 		(min ioffset aoffset,
 		acode ++ icode)) (new_offset, nop) instrs  
 	
-
+	
 let compile_decl (atext, adata) d =
 	match d with 
 	| Dstruct _ -> assert false
@@ -266,8 +353,6 @@ let compile_decl (atext, adata) d =
 				mov ~%rsp ~%rbp ++
 				addq ~$max_rbp_offset ~%rsp ++
 				body_code ++ 
-				
-				(* beaucoup de chose à faire *)
 				
 				
 				label lab_fin ++ 
