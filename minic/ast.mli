@@ -38,7 +38,6 @@ and 'info expr_node =
   | Esizeof of c_type
   | Ebinop of 'info expr * binop * 'info expr
   | Eunop of unop * 'info expr
-  | Egetarr of 'info expr * 'info expr
   | Estructvar of 'info expr * ident 
   | Estructvarpointer of 'info expr * ident
   | Eassign of 'info expr * 'info expr

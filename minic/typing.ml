@@ -143,20 +143,26 @@ let rec type_expr env e =
 		begin match unop with
 		| Neg -> let te0 = type_expr env e0 in
 			if not (arith te0.info) then 
-				error e0.info "Type invalide pour -"
+				error e0.info "Type invalide pour (!)"
 			else 
 				mk_node te0.info (Eunop(Neg, te0))
 		| Deref -> let te0 = type_lvalue env e0 in 
-					assert false
+					begin
+						match te0.info with
+						| Tpointer(_) -> mk_node te0.info (Eunop(unop,te0))
+						| _ -> error e0.info "Type invalide pour (&)"
+					end
+		| Addr -> let te0 = type_lvalue env e0 in
+					mk_node (Tpointer(te0.info)) (Eunop(unop,te0))
 		| Preincr | Postincr | Predecr | Postdecr 
 			-> let te0 = type_expr env e0 in
 			if not (arith te0.info) then 
-				error e0.info "Type invalide pour -"
+				error e0.info "Type invalide pour (--)"
 			else  
 				mk_node te0.info (Eunop(unop, te0))
 		| Not -> let te0 = type_expr env e0 in
 			if not (num te0.info) then 
-				error e0.info "Type invalide pour -"
+				error e0.info "Type invalide pour (-)"
 			else  
 				mk_node signed_int (Eunop(unop, te0))
 		end
@@ -229,7 +235,7 @@ let rec type_expr env e =
 					then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
 					else error e.info "Type invalide pour -"
 			
-			| _ -> assert false 
+			| _ -> __LOC__
 		end
 	| Eassign (e1, e2) -> 
 			let te1 = type_lvalue env e1 in
@@ -355,5 +361,5 @@ let type_decl d =
 let type_prog prog = 
 	List.map (type_decl) prog 
 
-	
+
 

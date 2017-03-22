@@ -116,14 +116,15 @@ RB							{ (lv, li) 				}
 ;
 	
 instr_:
-| SEMI													{ Sskip 	}
-| e = expr ; SEMI 										{ Sexpr e	}
+| SEMI													                        { Sskip 	}
+| e = expr ; SEMI 										                  { Sexpr e	}
 | IF ; LP ; e = expr ; RP ; i1=instr; ELSE ; i2=instr   { Sif(e,i1,i2) }  				
-| IF ; LP ; e=expr ; RP; i1= instr	%prec thenif		{ Sif(e,i1,loc_dummy Sskip ) }
-| FOR ; LP ; l1 = l_expr; SEMI ; e = option(expr) ; SEMI; l2 = l_expr ; RP ; i = instr { Sfor(l1, e ,l2,i)}
-| WHILE ; LP ; e =expr ; RP; i = instr 					{ Sfor( [], Some(e), [], i)  }
-| RETURN ; e = option(expr) ; SEMI 							{ Sreturn e }
-| b = block                                     { Sblock b}
+| IF ; LP ; e=expr ; RP; i1= instr	%prec thenif		    { Sif(e,i1,loc_dummy Sskip ) }
+| FOR ; LP ; l1 = l_expr; SEMI ; e = option(expr) ; SEMI; l2 = l_expr ; RP ; i = instr 
+                                                        { Sfor(l1, e ,l2,i)}
+| WHILE ; LP ; e =expr ; RP; i = instr 					        { Sfor( [], Some(e), [], i)  }
+| RETURN ; e = option(expr) ; SEMI 							        { Sreturn e }
+| b = block                                             { Sblock b}
 ;
 
 instr:
@@ -199,27 +200,27 @@ const:
 *)
 
 expr_:
-| c = const							{ c 				}
-| e1 = expr ; o = op ; e2 = expr	{ Ebinop(e1,o,e2)	}
-| id = ident 						{ Eident id 		}
-| MINUS ; e = expr	%prec uminus	{ Eunop(Neg, e)   }
-| MULT ; e = expr 	%prec ustar		{ Eunop(Deref, e)	}
-| NOT ; e = expr 					{ Eunop(Not, e)	}
-| LP ; e = expr_ ; RP 				{ e 				}
-| PLUS ; e = expr	%prec uplus		{ e.node 				}
-| PP; e = expr	 					{ Eunop(Preincr,e)	}
-| MM; e = expr	 					{ Eunop(Predecr,e)	}
-| e = expr ; MM						{ Eunop(Postdecr,e)	}
-| e = expr ; PP						{ Eunop(Postincr,e)	}
-| e1 = expr ; LBRACKET ; e2 = expr ; RBRACKET 
-									{Egetarr( e1, e2)	}
-| e1 = expr ; DOT ; id = ident		{ Estructvar(e1, id) }
-| e1 = expr ; POINTER ; id = ident  { Estructvarpointer( e1, id) }
-| e1 = expr ; ASSIGN ; e2 = expr    { Eassign( e1, e2 ) }
-| id = ident ; LP ; e = l_expr ; RP	{ Ecall( id, e) }
-| SIZEOF ; LP ; ct = cplx_type ; RP	{ let t = untyp ct in Esizeof t }
-| LP ; ct = cplx_type ; RP ; e = expr { let t = untyp ct in Ecast( t, e ) 	}
-| ADDRESS ; e = expr      { Eunop(Addr,e) }
+| c = const						                             { c 				}
+| e1 = expr ; o = op ; e2 = expr	                 { Ebinop(e1,o,e2)	}
+| id = ident 						                           { Eident id 		}
+| MINUS ; e = expr	%prec uminus	                 { Eunop(Neg, e)   }
+| MULT ; e = expr 	%prec ustar		                 { Eunop(Deref, e)	}
+| NOT ; e = expr 					                         { Eunop(Not, e)	}
+| LP ; e = expr_ ; RP 				                     { e 				}
+| PLUS ; e = expr	%prec uplus		                   { e.node 				}
+| PP; e = expr	 					                         { Eunop(Preincr,e)	}
+| MM; e = expr	 					                         { Eunop(Predecr,e)	}
+| e = expr ; MM						                         { Eunop(Postdecr,e)	}
+| e = expr ; PP						                         { Eunop(Postincr,e)	}
+| e1 = expr ; LBRACKET ; e2 = expr ; RBRACKET      { Eunop(Deref,mk_loc (Ebinop( e1,And,e2))
+                                                     ($startpos,$endpos))	}
+| e1 = expr ; DOT ; id = ident		                 { Estructvar(e1, id) }
+| e1 = expr ; POINTER ; id = ident                 { Estructvarpointer( e1, id) }
+| e1 = expr ; ASSIGN ; e2 = expr                   { Eassign( e1, e2 ) }
+| id = ident ; LP ; e = l_expr ; RP	               { Ecall( id, e) }
+| SIZEOF ; LP ; ct = cplx_type ; RP	               { let t = untyp ct in Esizeof t }
+| LP ; ct = cplx_type ; RP ; e = expr              { let t = untyp ct in Ecast( t, e ) 	}
+| ADDRESS ; e = expr                               { Eunop(Addr,e) }
 ;
 
 
