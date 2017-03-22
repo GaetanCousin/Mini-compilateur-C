@@ -279,7 +279,7 @@ and type_eaccess f_type env e0 x =
 				| _ -> error e0.info " accès a une valeur non structurelle"
 			end
 
-
+(* vérifier qu'il y a un return du bon type pour chaque instruction *)
 let rec type_instr ty env t = 
 	match t.node with 
 	| Sskip -> mk_node Tvoid Sskip
@@ -359,7 +359,9 @@ let type_decl d =
 			end 
 	
 let type_prog prog = 
-	List.map (type_decl) prog 
+	let t_prog = List.map (type_decl) prog in
+	if not (Hashtbl.mem fun_env "main") then assert false
+	else t_prog 
 
 
 
