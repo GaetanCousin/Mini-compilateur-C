@@ -212,7 +212,7 @@ expr_:
 | MM; e = expr	 					                         { Eunop(Predecr,e)	}
 | e = expr ; MM						                         { Eunop(Postdecr,e)	}
 | e = expr ; PP						                         { Eunop(Postincr,e)	}
-| e1 = expr ; LBRACKET ; e2 = expr ; RBRACKET      { Eunop(Deref,mk_loc (Ebinop( e1,And,e2))
+| e1 = expr ; LBRACKET ; e2 = expr ; RBRACKET      { Eunop(Deref,mk_loc (Ebinop( e1,Add,e2))
                                                      ($startpos,$endpos))	}
 | e1 = expr ; DOT ; id = ident		                 { Estructvar(e1, id) }
 | e1 = expr ; POINTER ; id = ident                 { Estructvarpointer( e1, id) }
