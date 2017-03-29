@@ -3,12 +3,14 @@ open Amd64
 open Typing
 
 let string_env  = Hashtbl.create 17
+let double_env = Hashtbl.create 17
 
 let gen_label =
 	let counter = ref (-1) in
 	fun prefix -> Printf.sprintf "label_%s_%d" prefix !counter
 
 let int_registers = [ rdi ; rsi ; rdx ; rcx ; r8 ; r9 ]
+let double_registers = [xmm0 ; xmm1 ; xmm2 ; xmm3 ; xmm4 ; xmm5 ; xmm6 ; xmm7]
 
 let rec fold2 f acc l1 l2 = 
 	match l1, l2 with 
@@ -56,14 +58,25 @@ let compile_const c =
 				Hashtbl.find string_env s 
 			with
 				Not_found ->
-				let lab = gen_label "string" in 
+				let lab = gen_label "string_" in 
 				Hashtbl.add string_env s lab;
 				lab
 		in
 		mov ~:label ~%r10  
 
 
-	| Cdouble _ -> assert false 
+	| Cdouble d ->  
+		let label = 
+			try 
+				Hashtbl.find double_env d 
+			with
+				Not_found -> 
+				let lab = gen_label "double_" in (* attention *)
+				Hashtbl.add double_env d lab;
+				lab
+		in
+		mov ~:label ~%r10  ++
+		mov (addr ~%r10) ~%r10
 
 
 let reg_size_of t =
@@ -147,6 +160,12 @@ and compile_expr_reg env e =
 		popq ~%r11 ++ (* e1 dans r11 *)
 		begin 
 			match op with
+			| Div when type_eq e1.info Tdouble -> 
+				movq ~%r10 ~%xmm0 ++
+				movq ~%r11 ~%xmm1 ++
+				divsd ~%xmm0 ~%xmm1 ++
+				movq ~%xmm1 ~%r10
+				
 			| Div | Mod -> 
 				let rsize = reg_size_of e1.info in
 				let ra = rax_ rsize in
@@ -167,7 +186,7 @@ and compile_expr_reg env e =
 				  ++ (if op = Div then mov ~%ra ~%re2 
 					  else mov ~%rd ~%re2)
 				
-			| Add -> 
+			| Add -> failwith __LOC__
 				
 				
 			| Sub -> failwith __LOC__
@@ -191,14 +210,12 @@ and compile_expr_reg env e =
 	| Ecall (f, args) -> 
 		let tret, _, _, extern = Hashtbl.find fun_env f.node in
 		if extern then
-			let arg_code = fold2 (fun (a_code) e r -> 
-					a_code ++
-					compile_expr env e ++
-					popq ~%r) nop args int_registers
+			let n_double, arg_code =
+				assign_regs env args int_registers double_registers (0, nop)
 			in
 			arg_code ++
-			xorq ~%rax ~%rax ++ (* on met le registre a 0 *)
-			call f.node ++ 
+			mov ~$n_double ~%rax ++
+			call f.node ++
 			mov ~%rax ~%r10
 		else 
 			let size_ret = round8 (size_of tret) in
@@ -236,6 +253,7 @@ and compile_expr_reg env e =
 
 
 
+
 (* renvoie (max_offset, code) *)
 and compile_expr env e = 
 	match e.info with 
@@ -252,7 +270,21 @@ and compile_expr env e =
 	  pushq ~%r10
 	
 		   
+
+and assign_regs env args iregs dregs (d_acc, code_acc) = 
+	match args, iregs, dregs with
+	| [], _, _ -> d_acc, code_acc
+	| e :: _, _, [] when e.info = Tdouble -> assert false 
+	| e :: _, [], _ -> assert false 
+	
+	| e :: next_args, _, dreg :: next_dregs when e.info = Tdouble -> 
+		assign_regs env next_args iregs next_dregs
+			( 1 + d_acc, code_acc ++ compile_expr env e ++ popd ~%dreg)
 			
+	| e :: next_args, ireg :: next_iregs, _ -> 
+		assign_regs env next_args next_iregs dregs
+			(d_acc, code_acc ++ compile_expr env e ++ popq ~%ireg)
+		
 
 
 
