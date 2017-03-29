@@ -34,6 +34,14 @@ let is_signed t = match t with
 	| Tnum(Signed, _ ) | Tpointer _ | Tnull -> true
 	| _ -> false 
   
+ let is_pointer t = match t with
+	| Tpointer tt -> true
+	| _ ->  false
+ 
+ let get_pointer t = match t with
+	| Tpointer tt -> tt
+	| _ -> assert false
+   
  
 let align_of t = 
 	match t with
@@ -155,6 +163,8 @@ and compile_expr_reg env e =
 	| Ebinop (e1, op, e2) -> 
 		let e1code = compile_expr env e1 in
 		let e2code = compile_expr env e2 in
+		let reg10 = r10_ (reg_size_of e.info) in
+		let reg11 = r11_ (reg_size_of e.info) in
 		e1code++
 		e2code++ (* e2 dans r10 *)
 		popq ~%r11 ++ (* e1 dans r11 *)
@@ -186,19 +196,39 @@ and compile_expr_reg env e =
 				  ++ (if op = Div then mov ~%ra ~%re2 
 					  else mov ~%rd ~%re2)
 				
-			| Add -> failwith __LOC__
-				
-				
-			| Sub -> failwith __LOC__
-			| Mult -> failwith __LOC__
-			| Eq -> failwith __LOC__
+			| Add | Sub -> 
+						let add_sub = 
+							if is_pointer e1.info then 
+							let p = get_pointer e1.info in
+							let size = size_of e2.info in
+							imulq ~$size ~%r11
+						 else if is_pointer e2.info then
+							let p = get_pointer e1.info in
+							let size = size_of e2.info in
+							imulq ~$size ~%r10 
+						 else 
+							nop
+					
+					in
+					add_sub ++
+					
+					if op = Add then add ~%reg11 ~%reg10 else sub ~%reg11 ~%reg10
+						
+						
+						
+						
+			| Sub -> sub ~%reg11 ~%reg10
+			| Mult -> imulq ~%r11 ~%r10
+			
+			| Eq -> failwith __LOC__ (* comparer avant et appeler la fonction de comparaison après *)
 			| Neq -> failwith __LOC__
 			| Ge -> failwith __LOC__
 			| Gt -> failwith __LOC__
 			| Le -> failwith __LOC__
 			| Lt -> failwith __LOC__
-			| And -> failwith __LOC__
-			| Or -> failwith __LOC__ 
+			
+			| And -> and_ ~%reg11 ~%reg10
+			| Or -> or_ ~%reg11 ~%reg10
 		end
 
 	| Eident _ | Eunop (Deref, _) | Estructvar _ ->
