@@ -167,7 +167,7 @@ and compile_expr_reg env e =
 				  ++ (if op = Div then mov ~%ra ~%re2 
 					  else mov ~%rd ~%re2)
 				
-			| Add -> failwith __LOC__ 
+			| Add -> 
 				
 				
 			| Sub -> failwith __LOC__
@@ -211,7 +211,8 @@ and compile_expr_reg env e =
 			subq ~$size_ret ~%rsp ++
 			arg_code ++
 			call f.node ++
-			addq ~$arg_size ~%rsp
+			addq ~$arg_size ~%rsp ++
+			if ( tret <> Tvoid ) then popq ~%r10 else nop
 
 	| Eunop (Addr, e0) -> compile_lvalue_reg env e0
 
