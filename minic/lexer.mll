@@ -76,8 +76,15 @@ rule token = parse
       { token lexbuf }
   | (digit+ '.' digit* | '.' digit+)(('e'|'E') '-'? digit+)?
 	  { CONST_DOUBLE ( float_of_string(lexeme lexbuf)) }
-  | "/*"
+  | "/*" 
       { incr comment_cpt; comment lexbuf; token lexbuf }
+  | "//" [^'\n']*'\n'?
+      {
+        let comment = lexeme lexbuf in
+        let last_char = comment.[String.length comment - 1] in
+        if last_char = '\n' then newline lexbuf;
+        token lexbuf
+      }
   | '\''char '\''
 	  { CONST_CHAR (lexeme lexbuf)} 
   (*| ('"'|"'")
