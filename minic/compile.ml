@@ -28,17 +28,31 @@ let rec size_of t =
 	| Tnum (_, Short) -> 2
 	| Tnum (_, Int) -> 4
 	| Tnum (_, Long) | Tdouble | Tpointer _ -> 8
-	| Tstruct id -> assert false  
+	| Tstruct id -> assert false 
 	
-let is_signed t = match t with
+
+let deref t = match t with
+    Tpointer tt -> tt
+  | _ -> assert false
+	
+let is_double d = 
+	match d with
+	| Tdouble -> true 
+	| _ -> false 
+	
+	
+let is_signed t = 
+	match t with
 	| Tnum(Signed, _ ) | Tpointer _ | Tnull -> true
 	| _ -> false 
   
- let is_pointer t = match t with
+ let is_pointer t = 
+	match t with
 	| Tpointer tt -> true
 	| _ ->  false
  
- let get_pointer t = match t with
+ let get_pointer t = 
+	match t with
 	| Tpointer tt -> tt
 	| _ -> assert false
    
@@ -144,20 +158,72 @@ let rec compile_lvalue_reg env e =
 	
 and compile_expr_reg env e = 
 (* code qui place le résultat dans r10 *)
+	begin
 	match e.node with 
 	| Econst c -> compile_const c 
 	
 	| Eunop ( unop, e ) -> 
+	  let reg10 = r10_ (reg_size_of e.info) in
+	  let reg11 = r11_ (reg_size_of e.info) in
 	  begin
 		match unop with 
-		| Neg -> failwith __LOC__
-		| Deref -> failwith __LOC__
-		| Preincr -> failwith __LOC__
-		| Postincr -> failwith __LOC__
-		| Predecr -> failwith __LOC__
-		| Postdecr -> failwith __LOC__
-		| Not -> failwith __LOC__
-		| Addr -> failwith __LOC__
+		| Neg -> let ecode = compile_expr_reg env e in 
+				ecode ++ (
+				if is_double e.info then
+					movq ~%r10 ~%xmm15 ++
+					xor ~%r10 ~%r10 ++
+					cvtsi2sdq ~%r10 ~%xmm14 ++
+					subsd ~%xmm15  ~%xmm14 ++
+					movq ~%xmm14 ~%r10
+				else
+					neg ~%reg10 )
+		
+		(* Deref est géré plus bas dans la fonction *)
+		(* | Deref -> 	assert false *)
+			
+		| Preincr | Postincr | Predecr | Postdecr ->
+
+        let ecode = compile_lvalue_reg env e in
+        let te = e.info in
+        let i = (if unop = Preincr ||  unop = Postincr then 1 else -1) in
+        let i = i * if is_pointer e.info then size_of (deref e.info) else 1 in
+        let pre = unop = Preincr || unop = Predecr in
+        ecode ++
+        if is_double te then
+			movsd (addr ~%r10) ~%xmm15 ++
+			movq ~$i ~%r11 ++
+			cvtsi2sdq ~%r11  ~%xmm14 ++
+			(
+			if pre then
+				addsd ~%xmm14 ~%xmm15 ++ movsd ~%xmm15 (addr ~%r10)
+            else
+				addsd ~%xmm15 ~%xmm14 ++ movsd ~%xmm14 (addr ~%r10)
+			)
+			++ movq ~%xmm15 ~%r10
+		else
+			let ri = r11_ (reg_size_of te) in
+			let rres = r10_ (reg_size_of te) in
+			movq ~%r10 ~%r12 ++
+			mov ~$i ~%ri ++
+			mov (addr ~%r12) ~%rres ++
+            if pre then
+				add ~%ri ~%rres ++  mov ~%rres (addr ~%r12)
+            else
+				add ~%rres ~%ri ++ mov ~%ri (addr ~%r12)		
+
+		| Not -> 	let ecode = compile_lvalue_reg env e in
+					ecode ++
+					(
+					if is_double e.info then
+						xorq ~%r10 ~%r10 ++
+						cvtsi2sdq ~%r10 ~%xmm14 ++
+						ucomisd ~%xmm14 ~%xmm15
+					else
+						test ~%reg10 ~%reg10
+						) ++
+					sete ~%r10b ++ movzbl ~%r10b ~%r10d
+		
+		| Addr -> compile_lvalue_reg env e
 	  end
 		
 	| Ebinop (e1, op, e2) -> 
@@ -199,34 +265,45 @@ and compile_expr_reg env e =
 			| Add | Sub -> 
 						let add_sub = 
 							if is_pointer e1.info then 
-							let p = get_pointer e1.info in
-							let size = size_of e2.info in
-							imulq ~$size ~%r11
-						 else if is_pointer e2.info then
-							let p = get_pointer e1.info in
-							let size = size_of e2.info in
-							imulq ~$size ~%r10 
-						 else 
-							nop
+								let p = get_pointer e1.info in
+								let size = size_of e2.info in
+								imulq ~$size ~%r11
+							else if is_pointer e2.info then
+								let p = get_pointer e2.info in
+								let size = size_of e1.info in
+								imulq ~$size ~%r10 
+							else 
+								nop
 					
 					in
 					add_sub ++
 					
 					if op = Add then add ~%reg11 ~%reg10 else sub ~%reg11 ~%reg10
-						
-						
-						
-						
-			| Sub -> sub ~%reg11 ~%reg10
+								
 			| Mult -> imulq ~%r11 ~%r10
 			
-			| Eq -> failwith __LOC__ (* comparer avant et appeler la fonction de comparaison après *)
-			| Neq -> failwith __LOC__
-			| Ge -> failwith __LOC__
-			| Gt -> failwith __LOC__
-			| Le -> failwith __LOC__
-			| Lt -> failwith __LOC__
 			
+			| Eq | Neq | Ge | Gt | Le | Lt -> 
+			
+			(
+			if is_double e1.info then
+				movq ~%r10 ~%xmm15 ++
+				movq ~%r11 ~%xmm14 ++
+				ucomisd ~%xmm15 ~%xmm14
+			else
+				cmpq ~%r10 ~%r11) ++  (* On utilise ensuite le flag généré *)		
+			begin
+				match op with
+				| Eq -> sete ~%r10b 
+				| Neq -> setne ~%r10b 
+				| Ge -> if is_signed e1.info then setge ~%r10b else setae ~%r10b
+				| Gt -> if is_signed e1.info then setg ~%r10b else seta ~%r10b
+				| Le -> if is_signed e1.info then setle ~%r10b else setbe ~%r10b
+				| Lt -> if is_signed e1.info then setl ~%r10b else setb ~%r10b
+			end
+			++ movzbl ~%r10b ~%r10d
+			
+
 			| And -> and_ ~%reg11 ~%reg10
 			| Or -> or_ ~%reg11 ~%reg10
 		end
@@ -236,6 +313,7 @@ and compile_expr_reg env e =
 		let reg10 = r10_ (reg_size_of e.info) in	 
 	 	compile_lvalue_reg env e ++ 
 	 	mov (addr ~%r10) ~%reg10
+	 	
 
 	| Ecall (f, args) -> 
 		let tret, _, _, extern = Hashtbl.find fun_env f.node in
@@ -261,8 +339,6 @@ and compile_expr_reg env e =
 			addq ~$arg_size ~%rsp ++
 			if ( tret <> Tvoid ) then popq ~%r10 else nop
 
-	| Eunop (Addr, e0) -> compile_lvalue_reg env e0
-
 	| Eassign (e1, e2) ->
 		(* r10 = e1 et r11 = e2 *)
 		let e2code = compile_expr env e2 in
@@ -282,6 +358,7 @@ and compile_expr_reg env e =
 	| _ -> failwith __LOC__
 
 
+	end
 
 
 (* renvoie (max_offset, code) *)
