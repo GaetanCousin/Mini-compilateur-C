@@ -22,6 +22,21 @@
   
   let comment_cpt = ref 0  
 
+  let code_char c =
+  match String.length c with
+    |1 ->  Char.code c.[0]
+    |2 |4 when c.[0] == '\\' -> 
+      begin
+        match c.[1] with
+        |'n' -> 10
+        |'t' -> 9
+        |'\'' -> 39
+        |'\"' -> 34
+        |'x' -> c.[0] <- '0'; (int_of_string c)
+        | _ -> failwith __LOC__
+      end
+    | _ -> failwith __LOC__
+
   let str_buff = Buffer.create 512 
   
   let keyword_or_ident =
@@ -62,9 +77,9 @@ let float = (integer '.' digit* | '.' integer) (('e'|'E')'-'?integer)?
 let ident = (alpha | '_') (digit | alpha | ['_'])*
 let hexa = digit | ['a'-'f' 'A'-'F']
 let char =
-  [^'\000'-'\x1f' '\\' '\'' '\"']
+  [^'\000'-'\x1f' '\\' '\'' '\"'] 
   | '\\' ('n' | 't' | '\'' |'\"')
-  | "\\x" hexa hexa
+  | "\\x" hexa hexa 
 
 let chaine = char*
 let integer = digit+
@@ -85,8 +100,9 @@ rule token = parse
         if last_char = '\n' then newline lexbuf;
         token lexbuf
       }
-  | '\''char '\''
-	  { CONST_CHAR (lexeme lexbuf)} 
+  | '\''char as c '\''
+	  (*{ CONST_CHAR (lexeme lexbuf)}*) 
+    { CINT (Signed, Char, code_char c)}
   (*| ('"'|"'")
 	  { string "" lexbuf; CONST_STRING (lexeme lexbuf ) }*)
   | (integer as i)(['U''u']? as u)(['L''l']? as l)

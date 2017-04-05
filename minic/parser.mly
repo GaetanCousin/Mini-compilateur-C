@@ -40,7 +40,6 @@
 %token EOF
 %token <float> CONST_DOUBLE
 %token <bool> CONST_BOOL
-%token <string> CONST_CHAR
 %token <string> CONST_STRING
 %token PLUS MINUS MULT DIV PP MM
 %token AND OR NOT
@@ -164,15 +163,14 @@ sign:
 ;
 
 num:
-CHAR	{	Char	}
 |SHORT	{	Short	}
 |INT	{	Int		}
 |LONG	{	Long	}
+|CHAR { Int }
 ;
 
 const:
 |d=CONST_DOUBLE { Econst (Cdouble d) }
-|c=CONST_CHAR 	{ Econst (Cstring c) }
 |s=CONST_STRING { Econst (Cstring s) }
 |c = CINT 		{ let s, t, i = c in Econst(Cint(s, t, i))}
 ;
