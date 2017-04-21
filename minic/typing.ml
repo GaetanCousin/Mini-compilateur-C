@@ -236,15 +236,15 @@ let rec type_expr env e =
 					 			&& op = Add->
 					 			mk_node t2 (Ebinop (nte1, Add, nte2))
 					 		| _ -> if compatible t1 t2 && compatible t2 Tdouble
-								   then mk_node (max_type t1 t2) (Ebinop(nte1,(op),nte1))
+								   then mk_node (max_type t1 t2) (Ebinop(nte1,(op),nte2))
 								   else error e.info "Type invalide pour + ou -"
 						   end
 
 			| Mult | Div -> if compatible t1 t2 && compatible t2 Tdouble
-									   then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
+									   then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte2))
 									   else error e.info "Type invalide pour * ou /"
 			| Eq | Neq | Ge | Gt | Le | Lt -> if compatible t1 t2
-											 then mk_node signed_int (Ebinop(nte1,op,nte1))
+											 then mk_node signed_int (Ebinop(nte1,op,nte2))
 											 else error e.info "Type invalide pour ==, !=, >, >=, <, <="
 			| Mod -> if compatible t1 t2 && typ_lte (max_type t1 t2) unsigned_long
 					 then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))

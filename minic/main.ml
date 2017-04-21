@@ -46,6 +46,7 @@ let () =
     let tp = Typing.type_prog p in 
     Printf.eprintf "Typing ok\n%!";
     let code = Compile.compile_prog tp in
+    Printf.eprintf "Compile ok\n%!";
     let out_file = Filename.chop_suffix file ".c" in
     Amd64.print_in_file ~file:(out_file ^ ".s") code
 

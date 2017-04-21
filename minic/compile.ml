@@ -111,6 +111,14 @@ let reg_size_of t =
 	| 4 -> `l
 	| _ -> `q
 	
+	
+let reg_size_of_int t =
+  match size_of t with
+  | 4 -> `l
+  | 8 -> `q
+  | _ -> assert false
+  
+  
 (* cast la valeur dans r10 de type tfrom en type tto *)
 let compile_cast tfrom tto =
 	let tfrom = if tfrom = Tnull then Tnum(Unsigned, Long) else tfrom in
@@ -232,58 +240,50 @@ and compile_expr_reg env e =
 	| Ebinop (e1, op, e2) -> 
 		let e1code = compile_expr env e1 in
 		let e2code = compile_expr env e2 in
-		let reg10 = r10_ (reg_size_of e.info) in
-		let reg11 = r11_ (reg_size_of e.info) in
+		let reg10 = r10_ (reg_size_of_int e.info) in
+		let reg11 = r11_ (reg_size_of_int e.info) in
 		e1code++
 		e2code++ (* e2 dans r10 *)
 		popq ~%r11 ++ (* e1 dans r11 *)
+		popq ~%r10 ++
 		begin 
 			match op with
-			| Div when type_eq e1.info Tdouble -> 
-				movq ~%r10 ~%xmm0 ++
-				movq ~%r11 ~%xmm1 ++
-				divsd ~%xmm0 ~%xmm1 ++
-				movq ~%xmm1 ~%r10
-				
-			| Div | Mod -> 
-				let rsize = reg_size_of e1.info in
-				let ra = rax_ rsize in
-				let rd = rdx_ rsize in
-				let re2 = r10_ rsize in
-				let re1 = r11_ rsize in
-				mov ~%re1 ~%ra ++ 
-				(if is_signed e1.info then 
-					(if rsize = `q then
-						cqto ++ idivq ~%r10
-					else
-						cltd ++ idivl ~%r10d)
-				 else
-						xor ~%rd ~%rd ++ 
-						(if rsize = `q then divq ~%r10
-						 else divl  ~%r10d)
-				)
-				  ++ (if op = Div then mov ~%ra ~%re2 
-					  else mov ~%rd ~%re2)
-				
-			| Add | Sub -> 
-						let add_sub = 
-							if is_pointer e1.info then 
-								let p = get_pointer e1.info in
-								let size = size_of e2.info in
-								imulq ~$size ~%r11
-							else if is_pointer e2.info then
-								let p = get_pointer e2.info in
-								let size = size_of e1.info in
-								imulq ~$size ~%r10 
-							else 
-								nop
-					
-					in
-					add_sub ++
-					
-					if op = Add then add ~%reg11 ~%reg10 else sub ~%reg11 ~%reg10
-								
-			| Mult -> imulq ~%r11 ~%r10
+        Add | Sub | Mult | Div when is_double e1.info ->
+                assert(is_double e2.info);
+                (* e1: xmm15, e2: xmm14 *)
+                movq ~%r11 ~%xmm15 ++
+                  movq ~%r10 ~%xmm14 ++
+                  (List.assoc op
+                              [Add, addsd; Sub, subsd; Mult, mulsd; Div, divsd])
+                    ~%xmm14 ~%xmm15  ++
+                  movq ~%xmm15 ~%r10
+        | Add | Sub when (arith e1.info && arith e2.info) || (is_pointer e1.info && is_pointer e1.info) ->
+         let ra = r10_ (reg_size_of_int e.info) in
+         let rb = r11_ (reg_size_of_int e.info) in
+         (if op = Add then add else sub) ~%ra ~%rb ++ mov ~%rb ~%ra
+
+        | Add | Sub  when is_pointer e1.info ->
+           imulq ~$(size_of (deref e1.info)) ~%r10 ++
+             (if op = Add then add else sub) ~%r11 ~%r10
+        | Add when is_pointer e2.info ->
+           imulq ~$(size_of (deref e2.info)) ~%r11 ++
+             add ~%r11 ~%r10
+
+        | Mult ->
+           let ra = r11_ (reg_size_of_int e.info) in
+           let rb = r10_ (reg_size_of_int e.info) in
+           imul ~%ra ~%rb
+        | Div | Mod  ->
+           movq ~%r11 ~%rax ++
+             let rsize = reg_size_of_int e1.info in
+             let r = rax_ rsize in
+             let rr = rdx_ rsize in
+             let rres = r10_ rsize in
+             (if rsize = `q then
+                cqto ++ idivq ~%r10
+              else
+                cltd ++ idivl ~%r10d) ++
+               mov (if op = Div then ~%r else ~%rr) ~%rres
 			
 			
 			| _ -> 
@@ -359,8 +359,7 @@ and compile_expr_reg env e =
 
 	end
 
-
-(* renvoie (max_offset, code) *)
+(* renvoie (max_offset, code) 00000000 00000000 00000000 11111111*)
 and compile_expr env e = 
 	match e.info with 
 	| Tstruct _ -> assert false (* A voir si on le traite ou pas *)
@@ -370,7 +369,7 @@ and compile_expr env e =
 		compile_expr_reg env e ++ pushq ~%r10
 		
 	| t -> let n = size_of t in
-	  let mask = ( 1 lsl n * 8) - 1 in
+	  let mask = ( 1 lsl (n * 8)) - 1 in
 	  compile_expr_reg env e ++
 	  andq ~$mask ~%r10 ++
 	  pushq ~%r10
@@ -443,7 +442,7 @@ let rec compile_instr lab_fin rbp_offset env i =
 		label label_for ++ 
 		e_comp ++
 		popq ~%r10 ++ 
-		cmpq ~%r10 ~$0 ++ 
+		cmpq ~$0 ~%r10  ++ 
 		je label_end_for ++
 		i_comp ++ 
 		l2_comp ++
@@ -455,23 +454,23 @@ let rec compile_instr lab_fin rbp_offset env i =
 
 (* renvoie (max_offset, code) *)
 and compile_block lab_fin rbp_offset env (var_decls, instrs) =
-	let new_offset, new_env, debug = 
-		List.fold_left ( fun (aoffset, aenv, debug) (t, x) -> 
-			let aenv = Env.add x.node aoffset aenv in
-			let offset = aoffset - round8 (size_of t) in
-			let debug = debug ++ 
-						comment (Printf.sprintf "local: %s rbp[%d]"
-									x.node aoffset)
-			in
-			(offset, aenv, debug)
-		) (rbp_offset, env, nop) var_decls  
-	in
-	List.fold_left ( fun ( aoffset, acode) i -> 
-		let ioffset , icode =
-			compile_instr lab_fin new_offset new_env i
-		in
-		(min ioffset aoffset,
-		acode ++ icode)) (new_offset, nop) instrs  
+  let new_offset, new_env, debug =
+    List.fold_left (fun (aoffset, aenv, debug) (t, x) ->
+        let aenv = Env.add x.node aoffset aenv  in
+        let offset = aoffset - round8 (size_of t) in
+        let debug = debug ++
+                    comment (Printf.sprintf "local: %s rbp[%d]"
+                               x.node aoffset)
+        in
+        (offset, aenv, debug)
+      ) (rbp_offset, env, nop) var_decls
+  in
+  List.fold_left (fun (aoffset, acode) i ->
+      let ioffset, icode =
+        compile_instr lab_fin new_offset new_env i
+      in
+      (min ioffset aoffset,
+       acode ++ icode)) (new_offset, debug) instrs  
 	
 	
 let compile_decl (atext, adata) d =
@@ -497,12 +496,12 @@ let compile_decl (atext, adata) d =
 			) (8, Env.empty) params 
 		in
 		let ret_offset = last_offset + round8 ( size_of tret) in
-		let env = Env.empty in
+		(* let env = Env.empty in *)
 		let lab_fin = f.node ^"_fin" in
 		let max_rbp_offset, body_code = compile_block lab_fin (-8) env body in
 		let code =
 			glabel f.node ++
-				comment (" On rentre dasn la fonction " ^ f.node) ++ 
+				comment (" On rentre dans la fonction " ^ f.node) ++ 
 				pushq ~%rbp ++
 				mov ~%rsp ~%rbp ++
 				addq ~$max_rbp_offset ~%rsp ++
