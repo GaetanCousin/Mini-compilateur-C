@@ -5,9 +5,12 @@ open Typing
 let string_env  = Hashtbl.create 17
 let double_env = Hashtbl.create 17
 
+
 let gen_label =
-	let counter = ref (-1) in
-	fun prefix -> Printf.sprintf "label_%s_%d" prefix !counter
+  let count = ref ~-1 in
+  fun prefix -> incr count;
+    prefix ^ (string_of_int !count)
+;;
 
 let int_registers = [ rdi ; rsi ; rdx ; rcx ; r8 ; r9 ]
 let double_registers = [xmm0 ; xmm1 ; xmm2 ; xmm3 ; xmm4 ; xmm5 ; xmm6 ; xmm7]
@@ -283,31 +286,27 @@ and compile_expr_reg env e =
 			| Mult -> imulq ~%r11 ~%r10
 			
 			
-			| Eq | Neq | Ge | Gt | Le | Lt -> 
+			| _ -> 
 			
-			(
-			if is_double e1.info then
-				movq ~%r10 ~%xmm15 ++
-				movq ~%r11 ~%xmm14 ++
-				ucomisd ~%xmm15 ~%xmm14
-			else
-				cmpq ~%r10 ~%r11) ++  (* On utilise ensuite le flag généré *)		
-			begin
+				let comp =
 				match op with
-				| Eq -> sete ~%r10b 
+				| Eq -> sete ~%r10b
 				| Neq -> setne ~%r10b 
-				| Ge -> if is_signed e1.info then setge ~%r10b else setae ~%r10b
-				| Gt -> if is_signed e1.info then setg ~%r10b else seta ~%r10b
-				| Le -> if is_signed e1.info then setle ~%r10b else setbe ~%r10b
-				| Lt -> if is_signed e1.info then setl ~%r10b else setb ~%r10b
+				| Ge -> setge ~%r10b
+				| Gt -> setg ~%r10b
+				| Le -> setle ~%r10b
+				| Lt -> setl ~%r10b
+				| _ -> assert false
+				in
+				
+				cmp ~%reg11 ~%reg10 ++
+				
+				comp ++
+				movzbq ~%r10b ~%r10
+				
 			end
-			++ movzbl ~%r10b ~%r10d
 			
-
-			| And -> and_ ~%reg11 ~%reg10
-			| Or -> or_ ~%reg11 ~%reg10
-		end
-
+			
 	| Eident _ | Eunop (Deref, _) | Estructvar _ ->
 
 		let reg10 = r10_ (reg_size_of e.info) in	 
@@ -444,7 +443,7 @@ let rec compile_instr lab_fin rbp_offset env i =
 		label label_for ++ 
 		e_comp ++
 		popq ~%r10 ++ 
-		cmpq ~$0 ~%r10 ++ 
+		cmpq ~%r10 ~$0 ++ 
 		je label_end_for ++
 		i_comp ++ 
 		l2_comp ++
