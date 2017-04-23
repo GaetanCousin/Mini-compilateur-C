@@ -539,11 +539,23 @@ let compile_decl (atext, adata) d =
 				(if (tret <> Tvoid) then
 					if f.node = "main" then 
 						popq ~%rax ++
-						comment ("affichage des variables count") ++
+						comment ("affichage des variables count") 
+						
+						(* je pense qu'il faut mettre tous les cpt dans arg *)
+						(*
+						let n_double, arg_code =
+							assign_regs env args int_registers double_registers (0, nop)
+						in
 
-
-						movq ~$10 ~%rax ++
-						call "printf" 
+						arg_code ++
+						mov ~$n_double ~%rax ++
+						pushq ~%rsp ++
+						pushq (addr ~%rsp) ++
+						andq ~$(-16) ~%rsp ++
+						call "printf" ++
+						movq (addr ~ofs:8 ~%rsp) ~%rsp ++
+						mov ~%rax ~%r10
+						*)
 					else
 						popq ~%r10 ++
 						mov ~%r10 (addr ~ofs:ret_offset ~%rbp)
