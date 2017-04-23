@@ -19,6 +19,39 @@ let unsigned_long = Tnum(Unsigned, Long)
 
 (* let global_t_signed_int = Tnum(Signed, Int) *)
 
+
+let calls = [|"";"";"";"";"";"";"";"";"";""|]
+let nb_appel = [|0;0;0;0;0;0;0;0;0;0|]
+let cpt = [|0|]
+
+let cpt_call = ref 0
+
+let nb_function = ref 0
+
+let totoo = ref 0
+let toto = ref 0
+
+
+
+
+let function_call f = 
+	let find = false in
+	let l = Array.length calls in
+
+	for i = 0 to l - 1 do
+		if calls.(i) = f then begin
+			nb_appel.(i) <- nb_appel.(i) + 1 ; find = true 
+		end
+	done;
+	if find then  
+		calls.(!cpt_call) <- f ;
+		nb_appel.(!cpt_call) <- nb_appel.(!cpt_call) + 1; 
+		cpt_call := !cpt_call + 1 
+
+
+
+
+
 let add_global_env tab key v =
 	if Hashtbl.mem tab key.node  then
 		error key.info("Redéfinition de l'identifiant " ^ key.node)
@@ -136,6 +169,7 @@ let type_const c =
 
 
 let rec type_expr env e =
+
 	match e.node with
 	| Econst c -> let tc = type_const c in
 					mk_node tc (Econst c)
@@ -170,6 +204,9 @@ let rec type_expr env e =
 			type_eaccess type_lvalue env e0 x
 
 	| Ecall (f, params) ->
+
+	function_call f.node;
+
 		let tparams = List.map (type_expr env) params in
 		begin
 			try
@@ -223,14 +260,14 @@ let rec type_expr env e =
 		begin
 			match op with
 			| And | Or -> if compatible t1 t2 && compatible t1 Tdouble
-						  then mk_node signed_int (Ebinop(nte1,op,nte1))
+						  then mk_node signed_int (Ebinop(nte1,op,nte2))
 						  else error e.info "Type invalide pour && ou ||"
 			| Add | Sub -> begin
 							match t1,t2 with
 							| Tpointer pt1, Tpointer pt2 when op = Sub && type_eq pt1 pt2 ->
 					 			mk_node signed_long (Ebinop (nte1, Sub, nte2))
 					 		|Tpointer (_), _ -> if(arith t2 && typ_lte (max_type t2 unsigned_long ) unsigned_long )
-					 							then mk_node t1 (Ebinop(nte1,op,nte1))
+					 							then mk_node t1 (Ebinop(nte1,op,nte2))
 					 							else error e.info "Type invalide pour + ou -"
 					 		| _ , Tpointer pt2 when arith t1 && typ_lte (max_type t1 unsigned_long) unsigned_long
 					 			&& op = Add->
@@ -247,10 +284,10 @@ let rec type_expr env e =
 											 then mk_node signed_int (Ebinop(nte1,op,nte2))
 											 else error e.info "Type invalide pour ==, !=, >, >=, <, <="
 			| Mod -> if compatible t1 t2 && typ_lte (max_type t1 t2) unsigned_long
-					 then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte1))
+					 then mk_node (max_type t1 t2) (Ebinop(nte1,op,nte2))
 					 else error e.info "Type invalide pour %"
 
-			| _ -> failwith __LOC__
+			| _ -> assert false
 		end
 	| Eassign (e1, e2) ->
 			let te1 = type_lvalue env e1 in
@@ -326,6 +363,7 @@ let rec type_instr ty env t =
 		mk_node ty (Sblock(tb))
 
 	| Sreturn e ->
+		nb_function := !nb_function + 1;
 		let te = match e with
 		| None -> None
 		| Some e -> Some(type_expr env e)
@@ -362,6 +400,8 @@ let type_decl d =
 		Dstruct(id, t_var_decl )
 
 	| Dfun (ty, ident, args , bloc) ->
+		
+		(* List.append liste_function [ident]; *)
 		if not (type_bf ty) then
 			error ident.info "Type de retour invalide"
 		else

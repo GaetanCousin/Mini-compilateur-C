@@ -5,6 +5,15 @@ open Typing
 let string_env  = Hashtbl.create 17
 let double_env = Hashtbl.create 17
 
+let calls = [|0|]
+let cpt = 0
+let tata = ["toto"; "tata"; "titi"] 
+
+let rec function_call a= 
+	calls.(0) <- calls.(0) + a
+
+
+
 
 let gen_label =
   let count = ref ~-1 in
@@ -128,6 +137,10 @@ let compile_cast tfrom tto =
 	match tfrom, tto with 
 	| (Tvoid | Tstruct _ ), _ -> assert false 
 	| _, (Tvoid | Tstruct _) -> assert false 
+	| Tdouble, (Tnull | Tnum _ | Tpointer _) ->
+		movq ~%r10 ~%xmm10 ++ cvttsd2siq ~%xmm10 ~%r10 (* double vers entier *)
+	| (Tnum _ | Tpointer _ | Tnull), Tdouble ->
+		cvtsi2sdq ~%r10 ~%xmm10 ++ movq ~%xmm10 ~%r10 (* entier vers double *)
 	| _ when size_tfrom = size_tto -> nop
 	| _ when size_tto < size_tfrom -> 
 	  let mask = (1 lsl (size_tto * 8) ) - 1 in
@@ -173,11 +186,11 @@ and compile_expr_reg env e =
 	match e.node with 
 	| Econst c -> compile_const c 
 	
-	| Eunop ( unop, e ) -> 
+	| Eunop ( unop, e ) when unop <> Deref -> 
 	  let reg10 = r10_ (reg_size_of e.info) in
-	  let reg11 = r11_ (reg_size_of e.info) in
+	  (* let reg11 = r11_ (reg_size_of e.info) in *)
 	  begin
-		match unop with 
+		match unop  with 
 		| Neg -> let ecode = compile_expr_reg env e in 
 				ecode ++ (
 				if is_double e.info then
@@ -314,7 +327,7 @@ and compile_expr_reg env e =
 	 	mov (addr ~%r10) ~%reg10
 	 	
 
-	| Ecall (f, args) -> 
+	| Ecall (f, args) ->
 		let tret, _, _, extern = Hashtbl.find fun_env f.node in
 		if extern then
 			let n_double, arg_code =
@@ -354,13 +367,13 @@ and compile_expr_reg env e =
 	  compile_expr_reg env e0
 	  ++ compile_cast e0.info t 
 	  
-	| _ -> failwith __LOC__
+	| _ -> assert false
 
 
 	end
 
 (* renvoie (max_offset, code) 00000000 00000000 00000000 11111111*)
-and compile_expr env e = 
+and compile_expr env e =
 	match e.info with 
 	| Tstruct _ -> assert false (* A voir si on le traite ou pas *)
 	| Tvoid -> compile_expr_reg env e
@@ -402,7 +415,7 @@ let rec compile_instr lab_fin rbp_offset env i =
 	match i.node with 
 	| Sskip -> rbp_offset, nop
 	| Sexpr e -> rbp_offset, compile_clean_expr env e 
-	| Sreturn oe -> 
+	| Sreturn oe ->
 	  rbp_offset, (
 		match oe with 
 		| None -> nop
@@ -485,9 +498,8 @@ let compile_decl (atext, adata) d =
 			align a ++
 			space n 
 			
-	| Dfun (_, _, _, None) -> atext, adata
+	| Dfun (_, _, _, None) -> atext, adata 
 	| Dfun (tret, f, params, Some body) ->
-		
 		let last_offset, env = 
 			List.fold_left ( fun (aoffset, aenv) (t, x) -> 
 				let offset = aoffset + round8 (size_of t) in 
@@ -499,8 +511,10 @@ let compile_decl (atext, adata) d =
 		(* let env = Env.empty in *)
 		let lab_fin = f.node ^"_fin" in
 		let max_rbp_offset, body_code = compile_block lab_fin (-8) env body in
+		function_call 10 ;
 		let code =
 			glabel f.node ++
+
 				comment (" On rentre dans la fonction " ^ f.node) ++ 
 				pushq ~%rbp ++
 				mov ~%rsp ~%rbp ++
@@ -524,7 +538,9 @@ let compile_decl (atext, adata) d =
 		in
 		atext ++ code , adata
 			
-		
+
+
+	
 let compile_prog p = 
 	let text, data =
 		List.fold_left compile_decl (nop, nop) p
