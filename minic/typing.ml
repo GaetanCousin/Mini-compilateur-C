@@ -34,20 +34,6 @@ let toto = ref 0
 
 
 
-let function_call f = 
-	let find = false in
-	let l = Array.length calls in
-
-	for i = 0 to l - 1 do
-		if calls.(i) = f then begin
-			nb_appel.(i) <- nb_appel.(i) + 1 ; find = true 
-		end
-	done;
-	if find then  
-		calls.(!cpt_call) <- f ;
-		nb_appel.(!cpt_call) <- nb_appel.(!cpt_call) + 1; 
-		cpt_call := !cpt_call + 1 
-
 
 
 
@@ -204,9 +190,6 @@ let rec type_expr env e =
 			type_eaccess type_lvalue env e0 x
 
 	| Ecall (f, params) ->
-
-	function_call f.node;
-
 		let tparams = List.map (type_expr env) params in
 		begin
 			try

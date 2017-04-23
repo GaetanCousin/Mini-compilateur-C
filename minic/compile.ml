@@ -13,8 +13,6 @@ let rec function_call a=
 	calls.(0) <- calls.(0) + a
 
 
-
-
 let gen_label =
   let count = ref ~-1 in
   fun prefix -> incr count;
@@ -328,11 +326,19 @@ and compile_expr_reg env e =
 	 	
 
 	| Ecall (f, args) ->
+		let f_cpt = (f.node ^ "_count") in
+		(* Incrementation du cpt de fonction *)
+			movq ~:(f_cpt) ~%r10 ++
+			mov (addr ~%r10) ~%r11 ++
+			inc ~%r11 ++
+			mov ~%r11 (addr ~%r10)++
 		let tret, _, _, extern = Hashtbl.find fun_env f.node in
 		if extern then
 			let n_double, arg_code =
 				assign_regs env args int_registers double_registers (0, nop)
 			in
+			
+
 			arg_code ++
 			mov ~$n_double ~%rax ++
 			call f.node ++
@@ -498,8 +504,19 @@ let compile_decl (atext, adata) d =
 			align a ++
 			space n 
 			
-	| Dfun (_, _, _, None) -> atext, adata 
+	| Dfun (_, f, _, None) ->  atext, 
+
+	(let n = size_of ( Tnum(Signed,Int) ) in
+	let a = align_of ( Tnum(Signed,Int) ) in
+	adata ++
+	label (f.node ^"_count") ++ 
+	align a ++
+	space n 
+	)
+
 	| Dfun (tret, f, params, Some body) ->
+
+
 		let last_offset, env = 
 			List.fold_left ( fun (aoffset, aenv) (t, x) -> 
 				let offset = aoffset + round8 (size_of t) in 
@@ -513,6 +530,8 @@ let compile_decl (atext, adata) d =
 		let max_rbp_offset, body_code = compile_block lab_fin (-8) env body in
 		function_call 10 ;
 		let code =
+
+
 			glabel f.node ++
 
 				comment (" On rentre dans la fonction " ^ f.node) ++ 
@@ -524,7 +543,11 @@ let compile_decl (atext, adata) d =
 				
 				label lab_fin ++ 
 				(if (tret <> Tvoid) then
-					if f.node = "main" then popq ~%rax
+					if f.node = "main" then 
+						popq ~%rax ++
+						comment (" IF NODE = MAIN " ^ f.node) ++
+						movq ~$f.node ~%rax ++
+						call "printf" 
 					else
 						popq ~%r10 ++
 						mov ~%r10 (addr ~ofs:ret_offset ~%rbp)
@@ -536,8 +559,16 @@ let compile_decl (atext, adata) d =
 				ret
 				
 		in
-		atext ++ code , adata
-			
+		atext ++ code,
+		(let n = size_of ( Tnum(Signed,Int) ) in
+		let a = align_of ( Tnum(Signed,Int) ) in
+		adata ++
+		label (f.node ^ "_count") ++ 
+			align a ++
+			space n 
+		)
+
+
 
 
 	
