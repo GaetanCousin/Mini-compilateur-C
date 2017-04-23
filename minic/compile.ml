@@ -5,12 +5,9 @@ open Typing
 let string_env  = Hashtbl.create 17
 let double_env = Hashtbl.create 17
 
-let calls = [|0|]
-let cpt = 0
-let tata = ["toto"; "tata"; "titi"] 
 
-let rec function_call a= 
-	calls.(0) <- calls.(0) + a
+(* let rec function_call a= 
+	calls.(0) <- calls.(0) + a *)
 
 
 let gen_label =
@@ -136,9 +133,9 @@ let compile_cast tfrom tto =
 	| (Tvoid | Tstruct _ ), _ -> assert false 
 	| _, (Tvoid | Tstruct _) -> assert false 
 	| Tdouble, (Tnull | Tnum _ | Tpointer _) ->
-		movq ~%r10 ~%xmm10 ++ cvttsd2siq ~%xmm10 ~%r10 (* double vers entier *)
+		movq ~%r10 ~%xmm10 ++ cvttsd2siq ~%xmm10 ~%r10 (* double -> entier *)
 	| (Tnum _ | Tpointer _ | Tnull), Tdouble ->
-		cvtsi2sdq ~%r10 ~%xmm10 ++ movq ~%xmm10 ~%r10 (* entier vers double *)
+		cvtsi2sdq ~%r10 ~%xmm10 ++ movq ~%xmm10 ~%r10 (* entier -> double *)
 	| _ when size_tfrom = size_tto -> nop
 	| _ when size_tto < size_tfrom -> 
 	  let mask = (1 lsl (size_tto * 8) ) - 1 in
@@ -332,13 +329,11 @@ and compile_expr_reg env e =
 			mov (addr ~%r10) ~%r11 ++
 			inc ~%r11 ++
 			mov ~%r11 (addr ~%r10)++
-		let tret, _, _, extern = Hashtbl.find fun_env f.node in
+		let tret, _, _, extern = Hashtbl.find Typing.fun_env f.node in
 		if extern then
 			let n_double, arg_code =
 				assign_regs env args int_registers double_registers (0, nop)
 			in
-			
-
 			arg_code ++
 			mov ~$n_double ~%rax ++
 			call f.node ++
@@ -528,7 +523,6 @@ let compile_decl (atext, adata) d =
 		(* let env = Env.empty in *)
 		let lab_fin = f.node ^"_fin" in
 		let max_rbp_offset, body_code = compile_block lab_fin (-8) env body in
-		function_call 10 ;
 		let code =
 
 
@@ -545,8 +539,10 @@ let compile_decl (atext, adata) d =
 				(if (tret <> Tvoid) then
 					if f.node = "main" then 
 						popq ~%rax ++
-						comment (" IF NODE = MAIN " ^ f.node) ++
-						movq ~$f.node ~%rax ++
+						comment ("affichage des variables count") ++
+
+
+						movq ~$10 ~%rax ++
 						call "printf" 
 					else
 						popq ~%r10 ++

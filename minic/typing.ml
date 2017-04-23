@@ -19,23 +19,13 @@ let unsigned_long = Tnum(Unsigned, Long)
 
 (* let global_t_signed_int = Tnum(Signed, Int) *)
 
-
-let calls = [|"";"";"";"";"";"";"";"";"";""|]
-let nb_appel = [|0;0;0;0;0;0;0;0;0;0|]
-let cpt = [|0|]
-
 let cpt_call = ref 0
 
 let nb_function = ref 0
 
-let totoo = ref 0
-let toto = ref 0
+let cpt_const = ref 0
 
-
-
-
-
-
+let cpt_assign = ref 0
 
 
 let add_global_env tab key v =
@@ -157,7 +147,8 @@ let type_const c =
 let rec type_expr env e =
 
 	match e.node with
-	| Econst c -> let tc = type_const c in
+	| Econst c -> 	cpt_const := !cpt_const + 1;
+					let tc = type_const c in
 					mk_node tc (Econst c)
 	| Eunop (unop, e0) ->
 		begin match unop with
@@ -190,6 +181,9 @@ let rec type_expr env e =
 			type_eaccess type_lvalue env e0 x
 
 	| Ecall (f, params) ->
+
+		cpt_call := !cpt_call + 1;
+
 		let tparams = List.map (type_expr env) params in
 		begin
 			try
@@ -278,6 +272,7 @@ let rec type_expr env e =
 			if not(compatible te1.info te2.info) then
 				error e1.info "Type incompatible pour l'affectation"
 			else
+				cpt_assign := !cpt_assign + 1;
 				mk_node te1.info (Eassign(te1, mk_cast te1.info te2))
 	| _ -> type_lvalue env e
 and type_lvalue env e =
@@ -383,7 +378,7 @@ let type_decl d =
 		Dstruct(id, t_var_decl )
 
 	| Dfun (ty, ident, args , bloc) ->
-		
+		nb_function := !nb_function + 1;	
 		(* List.append liste_function [ident]; *)
 		if not (type_bf ty) then
 			error ident.info "Type de retour invalide"

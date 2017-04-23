@@ -56,22 +56,19 @@ let () =
     close_in c;
     if !parse_only then exit 0;
     let tp = Typing.type_prog p in 
-    Printf.eprintf "Typing ok\n%!";
+    Printf.eprintf "Typing : success\n%!";
+
     if !profilage then 
-      Printf.eprintf "Nombre de fonction : %d\n" !nb_function;
-      Printf.eprintf "Nombre d'appel total de fonction: %d\n" Typing.nb_appel.(0);
-      
-      let l = Array.length Typing.calls in
-      for i = 0 to l - 1 do 
-         Printf.eprintf "func %s : %d\n" Typing.calls.(i) Typing.nb_appel.(i) ;
-      done;
-
-      Printf.eprintf "CPT : %d\n" !toto;
-
+      Printf.eprintf "Affichage cpt de Typing :
+      Nombre de fonctions (déclaré/appelé): %d 
+      Nombre d'appels total de fonction: %d  
+      Nombre de constantes utilisées : %d   
+      Nombre d'affectations %d\n" 
+      !nb_function !cpt_call !cpt_const !cpt_assign; 
 
 
     let code = Compile.compile_prog tp in
-    Printf.eprintf "Compile ok\n%!";
+    Printf.eprintf "Compile : success\n%!";
     let out_file = Filename.chop_suffix file ".c" in
     Amd64.print_in_file ~file:(out_file ^ ".s") code
 
