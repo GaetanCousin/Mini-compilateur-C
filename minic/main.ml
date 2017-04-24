@@ -58,13 +58,17 @@ let () =
     let tp = Typing.type_prog p in 
     Printf.eprintf "Typing : success\n%!";
 
+	let taille = Hashtbl.length Compile.liste_cpt_fonction in
+
     if !profilage then 
       Printf.eprintf "Affichage cpt de Typing :
       Nombre de fonctions (déclaré/appelé): %d 
       Nombre d'appels total de fonction: %d  
       Nombre de constantes utilisées : %d   
-      Nombre d'affectations %d\n" 
-      !nb_function !cpt_call !cpt_const !cpt_assign; 
+      Nombre d'affectations %d\n
+      Taille tab : %d\n"
+      
+      !nb_function !cpt_call !cpt_const !cpt_assign taille; 
 
 
     let code = Compile.compile_prog tp in

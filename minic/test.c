@@ -1,37 +1,19 @@
-int x;
-int y;
-double d;
-extern double d (int x, int y, int z);
-unsigned int w;
-
-int f( double *x){
-	
-int y;
-int z;
-
-3.2;
-"aa";
-'a';
-x + y;
-z * y;
-y - z;
-x / z;
-z % x;
-x < z;
-y > y;
-x >= z;
-z <= x;
-x == y;
-y && x;
-y || z;
-++x;
---y;
-z++;
-y--; 
-*x;
+int f(){
+    return 0;
 }
 
+int g(){
+    return 0;
+}
 
-int a;
+int h(){
+    return 0;
+}
 
+int main () {
+    int i;
+    for( i = 0 ; i < 3 ; i++)
+        g()+h();
+    return f() + g() + h();
+}
 

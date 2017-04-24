@@ -5,9 +5,13 @@ open Typing
 let string_env  = Hashtbl.create 17
 let double_env = Hashtbl.create 17
 
+let liste_cpt_fonction = Hashtbl.create 17
 
-(* let rec function_call a= 
-	calls.(0) <- calls.(0) + a *)
+
+let mk_node t e = { info = t ; node = e }
+let mk_loc e l = { info = l; node = e }
+let loc_dummy e =
+    mk_loc e (Lexing.dummy_pos, Lexing.dummy_pos)
 
 
 let gen_label =
@@ -323,7 +327,7 @@ and compile_expr_reg env e =
 	 	
 
 	| Ecall (f, args) ->
-		let f_cpt = (f.node ^ "_count") in
+		let f_cpt = (f.node ^ "_cpt") in
 		(* Incrementation du cpt de fonction *)
 			movq ~:(f_cpt) ~%r10 ++
 			mov (addr ~%r10) ~%r11 ++
@@ -504,14 +508,16 @@ let compile_decl (atext, adata) d =
 	(let n = size_of ( Tnum(Signed,Int) ) in
 	let a = align_of ( Tnum(Signed,Int) ) in
 	adata ++
-	label (f.node ^"_count") ++ 
+	label (f.node ^"_cpt") ++ 
 	align a ++
 	space n 
 	)
 
 	| Dfun (tret, f, params, Some body) ->
 
-
+		(*let liste_cpt_fonction = f.node :: liste_cpt_fonction in*)
+		
+		
 		let last_offset, env = 
 			List.fold_left ( fun (aoffset, aenv) (t, x) -> 
 				let offset = aoffset + round8 (size_of t) in 
@@ -523,6 +529,7 @@ let compile_decl (atext, adata) d =
 		(* let env = Env.empty in *)
 		let lab_fin = f.node ^"_fin" in
 		let max_rbp_offset, body_code = compile_block lab_fin (-8) env body in
+		let _ = Hashtbl.add liste_cpt_fonction f.node 0 in
 		let code =
 
 
@@ -539,23 +546,35 @@ let compile_decl (atext, adata) d =
 				(if (tret <> Tvoid) then
 					if f.node = "main" then 
 						popq ~%rax ++
-						comment ("affichage des variables count") 
+						comment ("affichage des variables count") ++
 						
 						(* je pense qu'il faut mettre tous les cpt dans arg *)
-						(*
-						let n_double, arg_code =
-							assign_regs env args int_registers double_registers (0, nop)
+						
+						
+						let profilage_code = Hashtbl.fold ( fun fname k acode -> 
+							
+							let text = mk_node Tnull (Econst (Cstring "function %s : %d\n")) in
+							let nom_fonction = mk_node Tnull (Econst (Cstring fname)) in
+							let varname = fname ^ "_cpt" in
+							let expr = mk_node Tnull (Eident(loc_dummy varname)) in
+							let args = [text ; nom_fonction ; expr] in
+							
+							let n_double, arg_code =
+								assign_regs env args int_registers double_registers (0, nop)
+							in
+							acode ++
+							arg_code ++
+							mov ~$n_double ~%rax ++
+							pushq ~%rsp ++
+							pushq (addr ~%rsp) ++
+							andq ~$(-16) ~%rsp ++
+							call "printf" ++
+							movq (addr ~ofs:8 ~%rsp) ~%rsp ++
+							mov ~%rax ~%r10 ) liste_cpt_fonction nop
 						in
-
-						arg_code ++
-						mov ~$n_double ~%rax ++
-						pushq ~%rsp ++
-						pushq (addr ~%rsp) ++
-						andq ~$(-16) ~%rsp ++
-						call "printf" ++
-						movq (addr ~ofs:8 ~%rsp) ~%rsp ++
-						mov ~%rax ~%r10
-						*)
+						profilage_code
+						
+						
 					else
 						popq ~%r10 ++
 						mov ~%r10 (addr ~ofs:ret_offset ~%rbp)
@@ -571,7 +590,7 @@ let compile_decl (atext, adata) d =
 		(let n = size_of ( Tnum(Signed,Int) ) in
 		let a = align_of ( Tnum(Signed,Int) ) in
 		adata ++
-		label (f.node ^ "_count") ++ 
+		label (f.node ^ "_cpt") ++ 
 			align a ++
 			space n 
 		)
