@@ -3,7 +3,7 @@
 %{
   open Ast
 
-
+(* position dans le fichier c *)
   let mk_loc e l = { info = l; node = e }
 
   let loc e =
@@ -14,7 +14,7 @@
 
   let loc_dummy e =
     mk_loc e (Lexing.dummy_pos, Lexing.dummy_pos)
-    
+
 
   type pvar =
     I of ident
@@ -25,7 +25,7 @@
     | I i -> (t, i)
     | P vv -> unvar (Tpointer t) vv
 
-  
+
   type ptyp =
   | T of c_type
   | C of ptyp
@@ -53,7 +53,7 @@
 %token SEMI
 %token WHILE FOR
 %token LBRACKET RBRACKET
-%token INT LONG DOUBLE UNSIGNED SHORT CHAR COMMA 
+%token INT LONG DOUBLE UNSIGNED SHORT CHAR COMMA
 %token SIZEOF VOID STRUCT EXTERN MODULO ADDRESS POINTER DOT
 %token <Ast.signedness*Ast.num*int> CINT
 
@@ -73,7 +73,7 @@
 
 
 
-/* Point d'entrée */
+(* Point d'entrée *)
 
 %start file
 %type <Ast.loc Ast.file> file
@@ -84,9 +84,7 @@ file:
 | l = list(decl) EOF {l}
 ;
 
-/* déclarations */
-
-
+(* déclarations *)
 decl:
   d = decl_var ; SEMI  {   Dvar (d ) }
 
@@ -100,26 +98,26 @@ decl:
       let t, i = unvar t v in
       Dfun(t, i, l, None)
     }
-| t = typ ;  v = var ; LP 
+| t = typ ;  v = var ; LP
   l = separated_list(COMMA, decl_var) ; RP ;
   b = block;
 	{
-		let  t , i = unvar t v in 
+		let  t , i = unvar t v in
 			Dfun(t, i , l , Some b)
 	}
-		
-		
+
+
 block:
 LB; lv = list (terminated(decl_var, SEMI)); li = list (instr);
 RB							{ (lv, li) 				}
 ;
-	
+
 instr_:
 | SEMI													                        { Sskip 	}
 | e = expr ; SEMI 										                  { Sexpr e	}
-| IF ; LP ; e = expr ; RP ; i1=instr; ELSE ; i2=instr   { Sif(e,i1,i2) }  				
+| IF ; LP ; e = expr ; RP ; i1=instr; ELSE ; i2=instr   { Sif(e,i1,i2) }
 | IF ; LP ; e=expr ; RP; i1= instr	%prec thenif		    { Sif(e,i1,loc_dummy Sskip ) }
-| FOR ; LP ; l1 = l_expr; SEMI ; e = option(expr) ; SEMI; l2 = l_expr ; RP ; i = instr 
+| FOR ; LP ; l1 = l_expr; SEMI ; e = option(expr) ; SEMI; l2 = l_expr ; RP ; i = instr
                                                         { Sfor(l1, e ,l2,i)}
 | WHILE ; LP ; e =expr ; RP; i = instr 					        { Sfor( [], Some(e), [], i)  }
 | RETURN ; e = option(expr) ; SEMI 							        { Sreturn e }
@@ -136,26 +134,26 @@ n=num ;	 					{ Tnum( Signed , n )   	}
 |VOID						{ Tvoid   				}
 |DOUBLE						{ Tdouble 				}
 |STRUCT ; id = ident 		{ Tstruct id 			}
-;	 
-
-  /* À COMPLÉTER : autres règles */	
-decl_var:
-t = typ ; v = var       { unvar t v }    
 ;
-  
+
+  /* À COMPLÉTER : autres règles */
+decl_var:
+t = typ ; v = var       { unvar t v }
+;
+
 ident_:
   i = IDENT    { i }
 ;
 
 ident:
 |i = ident_ 	{ mk_loc i ($startpos,$endpos)	}
-;  
+;
 
 
 var:
   i = ident      	{ I (i) }
 | MULT ; v = var    { P(v) }
-; 
+;
 
 sign:
   { Signed }
@@ -166,7 +164,7 @@ num:
 |SHORT	{	Short	}
 |INT	{	Int		}
 |LONG	{	Long	}
-|CHAR { Int }
+|CHAR { Char }
 ;
 
 const:
@@ -190,12 +188,6 @@ const:
 |AND        { And }
 |OR         { Or  }
 ;
-
-(*
-%inline incr:
-|PP	{ incr }
-|MM { decr }
-*)
 
 expr_:
 | c = const						                             { c 				}
@@ -225,12 +217,12 @@ expr_:
 
 cplx_type :
 | t = typ       		{ T(t) }
-| v = cplx_type ; MULT  { C(v) }
+| MULT ; v = cplx_type  { C(v) }
 ;
 
 expr:
 | e = expr_ 	{ mk_loc e ($startpos,$endpos)	}
-; 
+;
 
 l_expr:
 | l = separated_list( COMMA, expr) {l}

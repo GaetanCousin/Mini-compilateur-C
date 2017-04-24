@@ -27,40 +27,33 @@ let cpt_const = ref 0
 
 let cpt_assign = ref 0
 
-
+(* fonction ajout des variable fonction typé a l'environnement *)
 let add_global_env tab key v =
 	if Hashtbl.mem tab key.node  then
 		error key.info("Redéfinition de l'identifiant " ^ key.node)
 	else
 		Hashtbl.add tab key.node v
 
+	let check_var_decl var_decl =
+		let _ =				List.fold_left( fun acc(typ, id) ->
+				if typ = Tvoid then
+					error id.info "Type de variable invalide"
+				else
+					if List.mem id.node acc then
+						error id.info("Redéfinition de l'identifiant" ^ id.node )						else
+						id.node :: acc) [] var_decl
+		in var_decl
 
+(*************** fonction utile pour la comparaison de type **************)
+(* n'importe quel type numérique*)
 let num t  = match t with
 	| Tstruct _ | Tvoid -> false
 	| _ -> true
-
+(* qui n'est pas un pointeur mais numérique *)
 let arith t  = match t with
 	| Tstruct _ | Tvoid | Tpointer _ -> false
 	| _ -> true
-
-let check_var_decl var_decl =
-	let _ =
-		List.fold_left( fun acc(typ, id) ->
-			if typ = Tvoid then
-				error id.info "Type de variable invalide"
-			else
-				if List.mem id.node acc then
-					error id.info("Redéfinition de l'identifiant" ^ id.node )
-				else
-					id.node :: acc) [] var_decl
-	in var_decl
-
-let rec check_wf t =
-	match t with
-	| Tstruct  id -> Hashtbl.mem struct_env id.node
-	| Tpointer tt -> check_wf tt
-	| _ -> true
-
+(* compatibilité des type, récursif pour vérifier le type pointer *)
 let compatible t1 t2 =
 	let rec compat_aux t1 t2 =
 		match t1, t2 with
@@ -73,7 +66,6 @@ let compatible t1 t2 =
 		| _ -> false
 	in
 	compat_aux t1 t2 || compat_aux t2 t1
-
 
 let rec type_eq t1 t2 =
 	match t1, t2 with
@@ -143,7 +135,7 @@ let type_const c =
 	| Cint( Signed, Int, 0) -> Tnull
 	| Cint( s, t, _) -> Tnum(s, t)
 
-
+(* vérifie le type de chaque expression *)
 let rec type_expr env e =
 
 	match e.node with
@@ -183,14 +175,14 @@ let rec type_expr env e =
 	| Ecall (f, params) ->
 
 		cpt_call := !cpt_call + 1;
-
+		(*type tout les params de la fonction appelée*)
 		let tparams = List.map (type_expr env) params in
 		begin
 			try
 				let tret, _ , args, _ = Hashtbl.find fun_env f.node in
 				try
 					let new_params =
-						if args = [] then tparams
+						if args = [] then tparams (* si aucun params on rendra liste vide *)
 						else
 						(* Compare les deux listes deux à deux pour tester la cohérence de type *)
 						List.map2 (fun e  (t, x) ->
@@ -223,6 +215,7 @@ let rec type_expr env e =
 					let te2 = if inf_type t2 signed_int then mk_cast signed_int te2 else te2 in
 					let t1 = te1.info in
 					let t2 = te2.info in
+					(* cast entre t1 et t2 les deux sens *)
 					if type_eq t1 unsigned_long then te1, mk_cast unsigned_long te2
 					else if type_eq t2 unsigned_long then mk_cast unsigned_long te1, te2
 					else if type_eq t1 signed_long then te1, mk_cast signed_long te2
@@ -361,7 +354,7 @@ and type_block ty env (var_decl, instrs )  =
       ti) instrs
   in
   (tvars, tinstrs)
-
+(*vérifie le type pour chaque déclaration *)
 let type_decl d =
 	match d with
 	| Dvar ((typ, id )) ->
@@ -378,7 +371,7 @@ let type_decl d =
 		Dstruct(id, t_var_decl )
 
 	| Dfun (ty, ident, args , bloc) ->
-		nb_function := !nb_function + 1;	
+		nb_function := !nb_function + 1;
 		(* List.append liste_function [ident]; *)
 		if not (type_bf ty) then
 			error ident.info "Type de retour invalide"
@@ -395,7 +388,7 @@ let type_decl d =
 			in
 				Dfun(ty, ident, t_args, t_block)
 			end
-
+(* vérifie que le main est présent avant de typé*)
 let type_prog prog =
 	let t_prog = List.map (type_decl) prog in
 	if not (Hashtbl.mem fun_env "main") then assert false

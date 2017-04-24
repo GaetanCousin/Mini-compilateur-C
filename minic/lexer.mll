@@ -67,7 +67,7 @@
       with Not_found -> IDENT s
 
 }
-
+(* définition des Int,char,float,ident *)
 let digit = ['0'-'9']
 let alpha = ['a'-'z' 'A'-'Z']
 let integer = digit+
@@ -82,7 +82,7 @@ let char =
 let chaine = char*
 let integer = digit+
 
-rule token = parse
+rule token = parse (* parseing *)
   | '\n'
       { newline lexbuf; token lexbuf }
   | [' ' '\t' '\r']+
@@ -181,14 +181,14 @@ rule token = parse
       { raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) }
 
 and comment = parse
-  | "*/" { () }
-  | '\n' { newline lexbuf; comment lexbuf }
-  | eof  { raise (Lexical_error "unterminated comment") }
-  | _    { comment lexbuf }
+  | "*/" { () }    (*on retourne au parsing a la fin d'un commentaire*)
+  | '\n' { newline lexbuf; comment lexbuf } (* meme si on saute une ligne le commentaire est toujours actif *)
+  | eof  { raise (Lexical_error "unterminated comment") } (* commentaire sans fin *)
+  | _    { comment lexbuf } (* on attend de rencontré une fin de commentaire *)
 
 and string = parse
   | char as c { Buffer.add_char str_buff (Char.chr (code_char c));
-                string lexbuf }
-  | '\"' { CONST_STRING (Buffer.contents str_buff) }
-  | eof  { raise (Lexical_error "unterminated string") }
-  | _    { char_error (lexeme lexbuf) }
+                string lexbuf } (* on ajoute au string le caractere *)
+  | '\"' { CONST_STRING (Buffer.contents str_buff) } (* fin de string *)
+  | eof  { raise (Lexical_error "unterminated string") } (* string sans fin *)
+  | _    { char_error (lexeme lexbuf) } (* si il y a un truc chelou erreur *)
